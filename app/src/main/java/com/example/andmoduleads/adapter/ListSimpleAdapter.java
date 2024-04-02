@@ -43,7 +43,6 @@ public class ListSimpleAdapter extends RecyclerView.Adapter<ListSimpleAdapter.Vi
            @Override
            public void onClick(View view) {
                sampleData.remove(position);
-//               notifyDataSetChanged();
                if (listener!=null)
                    listener.onRemoveItem(position);
            }

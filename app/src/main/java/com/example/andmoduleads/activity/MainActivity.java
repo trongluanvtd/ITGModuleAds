@@ -16,13 +16,13 @@ import com.ads.control.admob.Admob;
 import com.ads.control.admob.AppOpenManager;
 import com.ads.control.ads.ITGAd;
 import com.ads.control.ads.ITGAdCallback;
-import com.ads.control.config.ITGAdConfig;
 import com.ads.control.ads.bannerAds.ITGBannerAdView;
 import com.ads.control.ads.nativeAds.ITGNativeAdView;
 import com.ads.control.ads.wrapper.ApAdError;
 import com.ads.control.ads.wrapper.ApInterstitialAd;
 import com.ads.control.ads.wrapper.ApRewardAd;
 import com.ads.control.billing.AppPurchase;
+import com.ads.control.config.ITGAdConfig;
 import com.ads.control.dialog.DialogExitApp1;
 import com.ads.control.dialog.InAppDialog;
 import com.ads.control.event.ITGAdjust;
@@ -71,19 +71,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdShowedFullScreenContent() {
                 super.onAdShowedFullScreenContent();
-                Log.e("AppOpenManager", "onAdShowedFullScreenContent: ");
 
             }
         });
-        /**
-         * Sample integration native ads
-         */
-        /*
-        ITGAd.getInstance().loadNativeAd(this, idNative, layoutNativeCustom);
-        ITGNativeAdView.setLayoutLoading(R.layout.loading_native_medium);
-        ITGNativeAdView.setLayoutCustomNativeAd(layoutNativeCustom);
-        ITGNativeAdView.loadNativeAd(this, idNative,layoutNativeCustom,R.layout.loading_native_medium);
-        */
+
         ITGNativeAdView.loadNativeAd(this, idNative, new ITGAdCallback() {
             @Override
             public void onAdImpression() {
@@ -95,15 +86,12 @@ public class MainActivity extends AppCompatActivity {
         AppPurchase.getInstance().setPurchaseListener(new PurchaseListener() {
             @Override
             public void onProductPurchased(String productId, String transactionDetails) {
-                Log.e("PurchaseListioner", "ProductPurchased:" + productId);
-                Log.e("PurchaseListioner", "transactionDetails:" + transactionDetails);
                 startActivity(new Intent(MainActivity.this, MainActivity.class));
                 finish();
             }
 
             @Override
             public void displayErrorMessage(String errorMsg) {
-                Log.e("PurchaseListioner", "displayErrorMessage:" + errorMsg);
             }
 
             @Override
@@ -112,7 +100,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-//        ITGAd.getInstance().loadBanner(this, idBanner);
         ITGBannerAdView bannerAdView = findViewById(R.id.bannerView);
         bannerAdView.loadBanner(this, idBanner, new ITGAdCallback() {
             @Override
@@ -130,24 +117,20 @@ public class MainActivity extends AppCompatActivity {
                 ITGAd.getInstance().showInterstitialAdByTimes(this, mInterstitialAd, new ITGAdCallback() {
                     @Override
                     public void onNextAction() {
-                        Log.i(TAG, "onNextAction: start content and finish main");
-                        startActivity(new Intent(MainActivity.this, ContentActivity.class));
+                        startActivity(new Intent(MainActivity.this, TestSplash.class));
                     }
 
                     @Override
                     public void onAdFailedToShow(@Nullable ApAdError adError) {
                         super.onAdFailedToShow(adError);
-                        Log.i(TAG, "onAdFailedToShow:" + adError.getMessage());
                     }
 
                     @Override
                     public void onInterstitialShow() {
                         super.onInterstitialShow();
-                        Log.d(TAG, "onInterstitialShow");
                     }
                 }, true);
             } else {
-                Toast.makeText(this, "start loading ads", Toast.LENGTH_SHORT).show();
                 loadAdInterstitial();
             }
         });
@@ -157,20 +140,17 @@ public class MainActivity extends AppCompatActivity {
                 ITGAd.getInstance().forceShowInterstitial(this, mInterstitialAd, new ITGAdCallback() {
                     @Override
                     public void onNextAction() {
-                        Log.i(TAG, "onAdClosed: start content and finish main");
-                        startActivity(new Intent(MainActivity.this, SimpleListActivity.class));
+                        startActivity(new Intent(MainActivity.this, TestSplash.class));
                     }
 
                     @Override
                     public void onAdFailedToShow(@Nullable ApAdError adError) {
                         super.onAdFailedToShow(adError);
-                        Log.i(TAG, "onAdFailedToShow:" + adError.getMessage());
                     }
 
                     @Override
                     public void onInterstitialShow() {
                         super.onInterstitialShow();
-                        Log.d(TAG, "onInterstitialShow");
                     }
                 }, true);
             } else {
@@ -184,7 +164,7 @@ public class MainActivity extends AppCompatActivity {
                 ITGAd.getInstance().forceShowRewardAd(this, rewardAd, new ITGAdCallback());
                 return;
             }
-            rewardAd = ITGAd.getInstance().getRewardAd(this,  BuildConfig.ad_reward);
+            rewardAd = ITGAd.getInstance().getRewardAd(this, BuildConfig.ad_reward);
         });
 
         Button btnIAP = findViewById(R.id.btIap);
@@ -280,7 +260,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-//        AppPurchase.getInstance().handleActivityResult(requestCode, resultCode, data);
         Log.e("onActivityResult", "ProductPurchased:" + data.toString());
         if (AppPurchase.getInstance().isPurchased(this)) {
             findViewById(R.id.btIap).setVisibility(View.GONE);
