@@ -71,7 +71,7 @@ public class MyApplication extends AdsMultiDexApplication {
         AppLovin.getInstance().setDisableAdResumeWhenClickAds(true);
         // If true -> onNextAction() is called right after Ad Interstitial showed
         Admob.getInstance().setOpenActivityAfterShowInterAds(true);
-        Admob.getInstance().setTimeInterval(0);
+        Admob.getInstance().setTimeInterval(30);
 
         if (ITGAd.getInstance().getMediationProvider() == ITGAdConfig.PROVIDER_ADMOB) {
             AppOpenManager.getInstance().disableAppResumeWithActivity(SplashActivity.class);

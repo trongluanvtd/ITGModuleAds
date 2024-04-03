@@ -1432,7 +1432,7 @@ public class Admob {
      */
     public void forceShowInterstitial(Context context, InterstitialAd mInterstitialAd, final AdCallback callback) {
         currentClicked = numShowAds;
-        if (System.currentTimeMillis() - timeAdDisplay >= timeAdInterval) {
+        if (System.currentTimeMillis() - timeAdDisplay >= timeAdInterval * 1000) {
             showInterstitialAdByTimes(context, mInterstitialAd, callback);
         } else {
             callback.onNextAction();
