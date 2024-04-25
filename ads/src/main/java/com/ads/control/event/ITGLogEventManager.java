@@ -27,7 +27,7 @@ public class ITGLogEventManager {
         ITGAdjust.pushTrackEventAdmob(adValue);
         ITGAppsflyer.getInstance().pushTrackEventAdmob(adValue, adUnitId, adType);
         // Log revenue Facebook 30/08
-        float value = adValue.getValueMicros() * 1.0f / 1000000 * 24000;
+        float value = adValue.getValueMicros() * 1.0f / 1000000;
         AppEventsLogger.newLogger(context).logPurchase(BigDecimal.valueOf(value), Currency.getInstance("VND"));
     }
 
