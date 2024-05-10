@@ -13,6 +13,8 @@ import com.ads.control.funtion.PurchaseListener;
 import com.android.billingclient.api.ProductDetails;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
+import java.util.List;
+
 public class PurchaseDevBottomSheet extends BottomSheetDialog {
     private ProductDetails productDetails;
     private int typeIap;
@@ -45,14 +47,24 @@ public class PurchaseDevBottomSheet extends BottomSheetDialog {
             txtTitle.setText(productDetails.getTitle());
             txtDescription.setText(productDetails.getDescription());
             txtId.setText(productDetails.getProductId());
-            if (typeIap == AppPurchase.TYPE_IAP.PURCHASE)
-                txtPrice.setText(productDetails.getOneTimePurchaseOfferDetails().getFormattedPrice());
-            else
-                txtPrice.setText(productDetails.getSubscriptionOfferDetails().get(0).getPricingPhases().getPricingPhaseList().get(0).getFormattedPrice());
+            String price = "$2.00";
+            if (typeIap == AppPurchase.TYPE_IAP.PURCHASE) {
+                ProductDetails.OneTimePurchaseOfferDetails oneTimePurchaseOfferDetails = productDetails.getOneTimePurchaseOfferDetails();
+                if (oneTimePurchaseOfferDetails != null) {
+                    price = oneTimePurchaseOfferDetails.getFormattedPrice();
+                }
+                txtPrice.setText(price);
+            } else {
+                List<ProductDetails.SubscriptionOfferDetails> subscriptionOfferDetails = productDetails.getSubscriptionOfferDetails();
+                if (subscriptionOfferDetails != null && !subscriptionOfferDetails.isEmpty()) {
+                    price = subscriptionOfferDetails.get(0).getPricingPhases().getPricingPhaseList().get(0).getFormattedPrice();
+                }
+                txtPrice.setText(price);
+            }
 
             txtContinuePurchase.setOnClickListener(v -> {
+                AppPurchase.getInstance().setPurchase(true);
                 if (purchaseListener != null) {
-                    AppPurchase.getInstance().setPurchase(true);
                     purchaseListener.onProductPurchased(productDetails.getProductId(), "{\"productId\":\"android.test.purchased\",\"type\":\"inapp\",\"title\":\"Tiêu đề mẫu\",\"description\":\"Mô tả mẫu về sản phẩm: android.test.purchased.\",\"skuDetailsToken\":\"AEuhp4Izz50wTvd7YM9wWjPLp8hZY7jRPhBEcM9GAbTYSdUM_v2QX85e8UYklstgqaRC\",\"oneTimePurchaseOfferDetails\":{\"priceAmountMicros\":23207002450,\"priceCurrencyCode\":\"VND\",\"formattedPrice\":\"23.207 ₫\"}}', parsedJson={\"productId\":\"android.test.purchased\",\"type\":\"inapp\",\"title\":\"Tiêu đề mẫu\",\"description\":\"Mô tả mẫu về sản phẩm: android.test.purchased.\",\"skuDetailsToken\":\"AEuhp4Izz50wTvd7YM9wWjPLp8hZY7jRPhBEcM9GAbTYSdUM_v2QX85e8UYklstgqaRC\",\"oneTimePurchaseOfferDetails\":{\"priceAmountMicros\":23207002450,\"priceCurrencyCode\":\"VND\",\"formattedPrice\":\"23.207 ₫\"}}, productId='android.test.purchased', productType='inapp', title='Tiêu đề mẫu', productDetailsToken='AEuhp4Izz50wTvd7YM9wWjPLp8hZY7jRPhBEcM9GAbTYSdUM_v2QX85e8UYklstgqaRC', subscriptionOfferDetails=null}");
                 }
                 dismiss();
