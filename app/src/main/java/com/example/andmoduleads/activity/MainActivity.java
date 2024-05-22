@@ -71,7 +71,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdShowedFullScreenContent() {
                 super.onAdShowedFullScreenContent();
-                Log.e("AppOpenManager", "onAdShowedFullScreenContent: ");
 
             }
         });
@@ -89,15 +88,12 @@ public class MainActivity extends AppCompatActivity {
         AppPurchase.getInstance().setPurchaseListener(new PurchaseListener() {
             @Override
             public void onProductPurchased(String productId, String transactionDetails) {
-                Log.e("PurchaseListioner", "ProductPurchased:" + productId);
-                Log.e("PurchaseListioner", "transactionDetails:" + transactionDetails);
                 startActivity(new Intent(MainActivity.this, MainActivity.class));
                 finish();
             }
 
             @Override
             public void displayErrorMessage(String errorMsg) {
-                Log.e("PurchaseListioner", "displayErrorMessage:" + errorMsg);
             }
 
             @Override

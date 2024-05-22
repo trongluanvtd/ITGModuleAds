@@ -543,7 +543,7 @@ public class AppPurchase {
             return "";
         }
         ProductDetails productDetails = skuDetailsINAPMap.get(productId);
-        Log.d(TAG, "purchase: "+ productDetails.toString());
+        Log.d(TAG, "purchase: " + productDetails);
         //ProductDetails{jsonString='{"productId":"android.test.purchased","type":"inapp","title":"Tiêu đề mẫu","description":"Mô tả mẫu về sản phẩm: android.test.purchased.","skuDetailsToken":"AEuhp4Izz50wTvd7YM9wWjPLp8hZY7jRPhBEcM9GAbTYSdUM_v2QX85e8UYklstgqaRC","oneTimePurchaseOfferDetails":{"priceAmountMicros":23207002450,"priceCurrencyCode":"VND","formattedPrice":"23.207 ₫"}}', parsedJson={"productId":"android.test.purchased","type":"inapp","title":"Tiêu đề mẫu","description":"Mô tả mẫu về sản phẩm: android.test.purchased.","skuDetailsToken":"AEuhp4Izz50wTvd7YM9wWjPLp8hZY7jRPhBEcM9GAbTYSdUM_v2QX85e8UYklstgqaRC","oneTimePurchaseOfferDetails":{"priceAmountMicros":23207002450,"priceCurrencyCode":"VND","formattedPrice":"23.207 ₫"}}, productId='android.test.purchased', productType='inapp', title='Tiêu đề mẫu', productDetailsToken='AEuhp4Izz50wTvd7YM9wWjPLp8hZY7jRPhBEcM9GAbTYSdUM_v2QX85e8UYklstgqaRC', subscriptionOfferDetails=null}
         if (AppUtil.VARIANT_DEV) {
             // Auto using id purchase test in variant dev
@@ -552,8 +552,6 @@ public class AppPurchase {
             purchaseDevBottomSheet.show();
             return "";
         }
-
-
 
         if (productDetails == null) {
             return "Product ID invalid";
@@ -924,13 +922,6 @@ public class AppPurchase {
             return pricingPhaseList.get(pricingPhaseList.size() - 1).getPriceAmountMicros();
         }
     }
-//
-//    public String getOldPrice() {
-//        SkuDetails skuDetails = bp.getPurchaseListingDetails(productId);
-//        if (skuDetails == null)
-//            return "";
-//        return formatCurrency(skuDetails.priceValue / discount, skuDetails.currency);
-//    }
 
     /**
      * Format currency and price by country

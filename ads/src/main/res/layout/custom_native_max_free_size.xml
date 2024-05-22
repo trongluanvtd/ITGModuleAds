@@ -91,7 +91,6 @@
             android:id="@+id/ad_call_to_action"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-
             android:layout_marginBottom="8dp"
             android:background="@drawable/ads_bg_lib"
             android:gravity="center"
@@ -109,10 +108,8 @@
             android:layout_height="20dp"
             android:layout_marginBottom="8dp"
             android:orientation="horizontal"
-            app:layout_constraintBottom_toTopOf="@+id/ad_advertiser"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="1.0"
-            app:layout_constraintStart_toEndOf="@+id/ad_headline"
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
