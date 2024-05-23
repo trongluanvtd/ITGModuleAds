@@ -42,7 +42,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-process:2.2.0'
 
     //admob
-    implementation 'com.google.android.gms:play-services-ads:23.1.0'
+    implementation 'com.google.android.gms:play-services-ads:22.5.0'
     implementation 'com.google.android.gms:play-services-ads-identifier:18.0.1'
     //mediation admob
     implementation 'com.google.ads.mediation:facebook:6.12.0.0'
