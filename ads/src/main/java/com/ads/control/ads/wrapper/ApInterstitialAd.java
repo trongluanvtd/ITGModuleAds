@@ -3,7 +3,7 @@ package com.ads.control.ads.wrapper;
 import com.applovin.mediation.ads.MaxInterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 
-public class ApInterstitialAd extends ApAdBase{
+public class ApInterstitialAd extends ApAdBase {
     private InterstitialAd interstitialAd;
     private MaxInterstitialAd maxInterstitialAd;
 
@@ -36,8 +36,8 @@ public class ApInterstitialAd extends ApAdBase{
     }
 
     @Override
-    public boolean isReady(){
-        if (maxInterstitialAd!=null && maxInterstitialAd.isReady())
+    public boolean isReady() {
+        if (maxInterstitialAd != null && maxInterstitialAd.isReady())
             return true;
         return interstitialAd != null;
     }

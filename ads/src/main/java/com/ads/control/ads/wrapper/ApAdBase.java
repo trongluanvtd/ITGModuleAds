@@ -21,14 +21,15 @@ public abstract class ApAdBase {
 
     abstract boolean isReady();
 
-    public boolean isNotReady(){
+    public boolean isNotReady() {
         return !isReady();
     }
 
-    public boolean isLoading(){
+    public boolean isLoading() {
         return status == StatusAd.AD_LOADING;
     }
-    public boolean isLoadFail(){
+
+    public boolean isLoadFail() {
         return status == StatusAd.AD_LOAD_FAIL;
     }
 }

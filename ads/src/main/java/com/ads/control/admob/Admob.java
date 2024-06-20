@@ -4,9 +4,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Application;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.content.Context;
 import android.content.res.Resources;
 import android.os.Build;
@@ -15,7 +12,6 @@ import android.os.Handler;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,32 +20,22 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.RatingBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ProcessLifecycleOwner;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.ads.control.R;
-import com.ads.control.ads.nativeAds.AdmobRecyclerAdapter;
-import com.ads.control.ads.nativeAds.ITGAdPlacer;
-import com.ads.control.ads.nativeAds.ITGAdPlacerSettings;
 import com.ads.control.billing.AppPurchase;
 import com.ads.control.dialog.PrepareLoadingAdsDialog;
 import com.ads.control.event.ITGLogEventManager;
 import com.ads.control.funtion.AdCallback;
 import com.ads.control.funtion.AdType;
-import com.ads.control.funtion.AdmodHelper;
+import com.ads.control.funtion.AdmobHelper;
 import com.ads.control.funtion.RewardCallback;
-import com.ads.control.util.AppUtil;
 import com.ads.control.util.SharePreferenceUtils;
-import com.applovin.mediation.AppLovinExtras;
-import com.applovin.mediation.ApplovinAdapter;
 import com.facebook.shimmer.ShimmerFrameLayout;
 import com.google.ads.mediation.admob.AdMobAdapter;
 import com.google.android.gms.ads.AdError;
@@ -60,6 +46,7 @@ import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MediaAspectRatio;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.OnUserEarnedRewardListener;
 import com.google.android.gms.ads.RequestConfiguration;
@@ -78,15 +65,13 @@ import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoa
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 public class Admob {
-    private static final String TAG = "ITGAdmob";
+    private static final String TAG = "ITGStudio";
     private static Admob instance;
     private int currentClicked = 0;
     private String nativeId;
@@ -96,48 +81,24 @@ public class Admob {
     private Handler handlerTimeout;
     private Runnable rdTimeout;
     private PrepareLoadingAdsDialog dialog;
-    private boolean isTimeout; // xử lý timeout show ads
+    private boolean isTimeout;
     private boolean disableAdResumeWhenClickAds = false;
-    private boolean isShowLoadingSplash = false;  //kiểm tra trạng thái ad splash, ko cho load, show khi đang show loading ads splash
-    private boolean isFan;
-    private boolean isAppLovin;
-    boolean isTimeDelay = false; //xử lý delay time show ads, = true mới show ads
+    private boolean isShowLoadingSplash = false;
+    boolean isTimeDelay = false;
     private boolean openActivityAfterShowInterAds = false;
     private Context context;
-//    private AppOpenAd appOpenAd = null;
 
     public static final String BANNER_INLINE_SMALL_STYLE = "BANNER_INLINE_SMALL_STYLE";
     public static final String BANNER_INLINE_LARGE_STYLE = "BANNER_INLINE_LARGE_STYLE";
     private final int MAX_SMALL_INLINE_BANNER_HEIGHT = 50;
 
     InterstitialAd mInterstitialSplash;
-    InterstitialAd interstitialAd;
 
-    // Luan
-    InterstitialAd mInterSplashHighFloor;
-    InterstitialAd mInterSplashAll;
+    private String tokenAdjust;
 
-    public Thread threadHighFloor;
-    public Thread threadAll;
-
-    public void setFan(boolean fan) {
-        isFan = fan;
-    }
-
-    public void setAppLovin(boolean appLovin) {
-        isAppLovin = appLovin;
-
-    }
-
-    /**
-     * Giới hạn số lần click trên 1 admod tren 1 ngay
-     *
-     * @param maxClickAds
-     */
     public void setMaxClickAdsPerDay(int maxClickAds) {
         this.maxClickAds = maxClickAds;
     }
-
 
     public static Admob getInstance() {
         if (instance == null) {
@@ -160,21 +121,11 @@ public class Admob {
         this.currentClicked = currentClicked;
     }
 
-    /**
-     * Disable ad resume when user click ads and back to app
-     *
-     * @param disableAdResumeWhenClickAds
-     */
     public void setDisableAdResumeWhenClickAds(boolean disableAdResumeWhenClickAds) {
         this.disableAdResumeWhenClickAds = disableAdResumeWhenClickAds;
     }
 
-    /**
-     * khởi tạo admod
-     *
-     * @param context
-     */
-    public void init(Context context, List<String> testDeviceList) {
+    public void init(Context context, List<String> testDeviceList, String tokenAdjust) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             String processName = Application.getProcessName();
             String packageName = context.getPackageName();
@@ -186,16 +137,19 @@ public class Admob {
             Map<String, AdapterStatus> statusMap = initializationStatus.getAdapterStatusMap();
             for (String adapterClass : statusMap.keySet()) {
                 AdapterStatus status = statusMap.get(adapterClass);
-                Log.d(TAG, String.format("Adapter name: %s, Description: %s, Latency: %d",
-                        adapterClass, status.getDescription(), status.getLatency()));
+                if (status != null) {
+                    Log.d(TAG, String.format("Adapter name: %s, Description: %s, Latency: %d",
+                            adapterClass, status.getDescription(), status.getLatency()));
+                }
             }
         });
         MobileAds.setRequestConfiguration(new RequestConfiguration.Builder().setTestDeviceIds(testDeviceList).build());
 
+        this.tokenAdjust = tokenAdjust;
         this.context = context;
     }
 
-    public void init(Context context) {
+    public void init(Context context, String tokenAdjust) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             String processName = Application.getProcessName();
             String packageName = context.getPackageName();
@@ -208,13 +162,16 @@ public class Admob {
             Map<String, AdapterStatus> statusMap = initializationStatus.getAdapterStatusMap();
             for (String adapterClass : statusMap.keySet()) {
                 AdapterStatus status = statusMap.get(adapterClass);
-                Log.d(TAG, String.format("Adapter name: %s, Description: %s, Latency: %d",
-                        adapterClass, status.getDescription(), status.getLatency()));
+                if (status != null) {
+                    Log.d(TAG, String.format("Adapter name: %s, Description: %s, Latency: %d",
+                            adapterClass, status.getDescription(), status.getLatency()));
+                }
             }
         });
+
+        this.tokenAdjust = tokenAdjust;
         this.context = context;
     }
-
 
     public boolean isShowLoadingSplash() {
         return isShowLoadingSplash;
@@ -231,216 +188,27 @@ public class Admob {
         return null;
     }
 
-    /**
-     * If true -> callback onNextAction() is called right after Ad Interstitial showed
-     * It help remove delay when user click close Ad and onAdClosed called
-     *
-     * @param openActivityAfterShowInterAds
-     */
     public void setOpenActivityAfterShowInterAds(boolean openActivityAfterShowInterAds) {
         this.openActivityAfterShowInterAds = openActivityAfterShowInterAds;
     }
 
+    @SuppressLint("VisibleForTests")
     public AdRequest getAdRequest() {
         AdRequest.Builder builder = new AdRequest.Builder();
-        // no need from facebook sdk ver 6.12.0.0
-        /*if (isFan) {
-            Bundle extras = new FacebookExtras()
-                    .setNativeBanner(true)
-                    .build();
-
-            builder.addNetworkExtrasBundle(FacebookAdapter.class, extras);
-        }*/
-
-        if (isAppLovin) {
-            Bundle extras = new AppLovinExtras.Builder()
-                    .setMuteAudio(true)
-                    .build();
-            builder.addNetworkExtrasBundle(ApplovinAdapter.class, extras);
-        }
-//        builder.addTestDevice(AdRequest.DEVICE_ID_EMULATOR);
         return builder.build();
-    }
-
-    private void requestInterstitialAds(InterstitialAd mInterstitialAd, String id, InterstitialAdLoadCallback callback) {
-        if (mInterstitialAd == null) {
-
-        }
     }
 
     public boolean interstitialSplashLoaded() {
         return mInterstitialSplash != null;
     }
 
-    public InterstitialAd getmInterstitialSplash() {
+    public InterstitialAd getInterstitialSplash() {
         return mInterstitialSplash;
     }
 
-    /**
-     * Multiple id inter splash call water fall
-     */
-
-    public void loadSplashInterstitialAds(final Context context, ArrayList<String> listID, long timeOut, long timeDelay, boolean showSplashIfReady, AdCallback adListener, String tokenAdjust) {
+    public void loadSplashInterstitialAds(final Context context, String id, long timeOut, long timeDelay, AdCallback adListener) {
         isTimeDelay = false;
         isTimeout = false;
-        Log.i(TAG, "loadSplashInterstitialAds  start time loading:" + Calendar.getInstance().getTimeInMillis() + "    ShowLoadingSplash:" + isShowLoadingSplash);
-
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                //check delay show ad splash
-                if (mInterstitialSplash != null) {
-                    Log.i(TAG, "loadSplashInterstitialAds:show ad on delay ");
-                    if (showSplashIfReady)
-                        onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
-                    else
-                        adListener.onAdSplashReady();
-                    return;
-                }
-                Log.i(TAG, "loadSplashInterstitialAds: delay validate");
-                isTimeDelay = true;
-            }
-        }, timeDelay);
-
-        if (timeOut > 0) {
-            handlerTimeout = new Handler();
-            rdTimeout = new Runnable() {
-                @Override
-                public void run() {
-                    Log.e(TAG, "loadSplashInterstitialAds: on timeout");
-                    isTimeout = true;
-                    if (mInterstitialSplash != null) {
-                        Log.i(TAG, "loadSplashInterstitialAds:show ad on timeout ");
-                        if (showSplashIfReady)
-                            onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
-                        else
-                            adListener.onAdSplashReady();
-                        return;
-                    }
-                    if (adListener != null) {
-                        adListener.onNextAction();
-                        isShowLoadingSplash = false;
-                    }
-                }
-            };
-            handlerTimeout.postDelayed(rdTimeout, timeOut);
-        }
-
-        isShowLoadingSplash = true;
-        getInterstitialAds(context, listID, new AdCallback() {
-            @Override
-            public void onInterstitialLoad(InterstitialAd interstitialAd) {
-                super.onInterstitialLoad(interstitialAd);
-                Log.e(TAG, "loadSplashInterstitalAds  end time loading success:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
-                if (isTimeout)
-                    return;
-                if (interstitialAd != null) {
-                    mInterstitialSplash = interstitialAd;
-                    if (isTimeDelay) {
-                        if (showSplashIfReady)
-                            onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
-                        else
-                            adListener.onAdSplashReady();
-                        Log.i(TAG, "loadSplashInterstitalAds:show ad on loaded ");
-                    }
-                }
-            }
-
-            @Override
-            public void onAdFailedToShow(@Nullable AdError adError) {
-                super.onAdFailedToShow(adError);
-                if (adListener != null) {
-                    adListener.onAdFailedToShow(adError);
-                    adListener.onNextAction();
-                }
-            }
-
-            @Override
-            public void onAdFailedToLoad(LoadAdError i) {
-                super.onAdFailedToLoad(i);
-                Log.e(TAG, "loadSplashInterstitalAds  end time loading error:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
-                if (isTimeout)
-                    return;
-                if (adListener != null) {
-                    adListener.onNextAction();
-                    if (handlerTimeout != null && rdTimeout != null) {
-                        handlerTimeout.removeCallbacks(rdTimeout);
-                    }
-                    if (i != null)
-                        Log.e(TAG, "loadSplashInterstitalAds: load fail " + i.getMessage());
-                    adListener.onAdFailedToLoad(i);
-                }
-            }
-        });
-
-    }
-
-    /**
-     * get multiple id inter splash call water fall
-     */
-
-    public void getInterstitialAds(Context context, ArrayList<String> listID, AdCallback adCallback) {
-        for (String id : listID) {
-            if (Arrays.asList(context.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-                showTestIdAlert(context, INTERS_ADS, id);
-            }
-            if (AdmodHelper.getNumClickAdsPerDay(context, id) >= maxClickAds) {
-                adCallback.onInterstitialLoad(null);
-                return;
-            }
-        }
-        if (listID.size() == 0) {
-            adCallback.onInterstitialLoad(null);
-            return;
-        }
-
-        InterstitialAd.load(context, listID.get(0), getAdRequest(),
-                new InterstitialAdLoadCallback() {
-                    @Override
-                    public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
-                        if (adCallback != null)
-                            adCallback.onInterstitialLoad(interstitialAd);
-
-                        //tracking adjust
-                        interstitialAd.setOnPaidEventListener(adValue -> {
-                            Log.d(TAG, "OnPaidEvent getInterstitialAds:" + adValue.getValueMicros());
-                        });
-                        Log.i(TAG, "InterstitialAds onAdLoaded");
-                        Log.i(TAG + "CheckID", "InterstitialAds onAdLoaded: " + interstitialAd.getAdUnitId());
-                    }
-
-                    @Override
-                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                        // Handle the error
-                        Log.i(TAG, loadAdError.getMessage());
-                        if (listID.size() > 0) {
-                            Log.i(TAG + "CheckID", "InterstitialAds onAdLoaded Fail: " + listID.get(0));
-                            listID.remove(0);
-                            Log.i(TAG, "InterstitialAds onAdLoaded");
-                            getInterstitialAds(context, listID, adCallback);
-                        }
-                        if (listID.size() == 0) {
-                            if (adCallback != null)
-                                adCallback.onAdFailedToLoad(loadAdError);
-                        }
-                    }
-                });
-    }
-
-    /**
-     * Load quảng cáo Full tại màn SplashActivity
-     * Sau khoảng thời gian timeout thì load ads và callback về cho View
-     *
-     * @param context
-     * @param id
-     * @param timeOut    : thời gian chờ ads, timeout <= 0 tương đương với việc bỏ timeout
-     * @param timeDelay  : thời gian chờ show ad từ lúc load ads
-     * @param adListener
-     */
-    public void loadSplashInterstitialAds(final Context context, String id, long timeOut, long timeDelay, AdCallback adListener, String tokenAdjust) {
-        isTimeDelay = false;
-        isTimeout = false;
-        Log.i(TAG, "loadSplashInterstitalAds  start time loading:" + Calendar.getInstance().getTimeInMillis() + "    ShowLoadingSplash:" + isShowLoadingSplash);
 
         if (AppPurchase.getInstance().isPurchased(context)) {
             if (adListener != null) {
@@ -453,11 +221,9 @@ public class Admob {
             public void run() {
                 //check delay show ad splash
                 if (mInterstitialSplash != null) {
-                    Log.i(TAG, "loadSplashInterstitalAds:show ad on delay ");
-                    onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
+                    onShowSplash((AppCompatActivity) context, adListener);
                     return;
                 }
-                Log.i(TAG, "loadSplashInterstitalAds: delay validate");
                 isTimeDelay = true;
             }
         }, timeDelay);
@@ -467,11 +233,9 @@ public class Admob {
             rdTimeout = new Runnable() {
                 @Override
                 public void run() {
-                    Log.e(TAG, "loadSplashInterstitalAds: on timeout");
                     isTimeout = true;
                     if (mInterstitialSplash != null) {
-                        Log.i(TAG, "loadSplashInterstitalAds:show ad on timeout ");
-                        onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
+                        onShowSplash((AppCompatActivity) context, adListener);
                         return;
                     }
                     if (adListener != null) {
@@ -489,14 +253,12 @@ public class Admob {
             @Override
             public void onInterstitialLoad(InterstitialAd interstitialAd) {
                 super.onInterstitialLoad(interstitialAd);
-                Log.e(TAG, "loadSplashInterstitalAds  end time loading success:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
                 if (isTimeout)
                     return;
                 if (interstitialAd != null) {
                     mInterstitialSplash = interstitialAd;
                     if (isTimeDelay) {
-                        onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
-                        Log.i(TAG, "loadSplashInterstitalAds:show ad on loaded ");
+                        onShowSplash((AppCompatActivity) context, adListener);
                     }
                 }
             }
@@ -506,15 +268,12 @@ public class Admob {
             public void onAdFailedToLoad(LoadAdError i) {
                 super.onAdFailedToLoad(i);
                 isShowLoadingSplash = false;
-                Log.e(TAG, "loadSplashInterstitalAds  end time loading error:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
                 if (isTimeout)
                     return;
                 if (adListener != null) {
                     if (handlerTimeout != null && rdTimeout != null) {
                         handlerTimeout.removeCallbacks(rdTimeout);
                     }
-                    if (i != null)
-                        Log.e(TAG, "loadSplashInterstitalAds: load fail " + i.getMessage());
                     adListener.onAdFailedToLoad(i);
                     adListener.onNextAction();
                 }
@@ -528,25 +287,13 @@ public class Admob {
                     adListener.onNextAction();
                 }
             }
-        }, tokenAdjust);
+        });
 
     }
 
-    /**
-     * Load quảng cáo Full tại màn SplashActivity
-     * Sau khoảng thời gian timeout thì load ads và callback về cho View
-     *
-     * @param context
-     * @param id
-     * @param timeOut           : thời gian chờ ads, timeout <= 0 tương đương với việc bỏ timeout
-     * @param timeDelay         : thời gian chờ show ad từ lúc load ads
-     * @param showSplashIfReady : auto show ad splash if ready
-     * @param adListener
-     */
-    public void loadSplashInterstitialAds(final Context context, String id, long timeOut, long timeDelay, boolean showSplashIfReady, AdCallback adListener, String tokenAdjust) {
+    public void loadSplashInterstitialAds(final Context context, String id, long timeOut, long timeDelay, boolean showSplashIfReady, AdCallback adListener) {
         isTimeDelay = false;
         isTimeout = false;
-        Log.i(TAG, "loadSplashInterstitialAds  start time loading:" + Calendar.getInstance().getTimeInMillis() + "    ShowLoadingSplash:" + isShowLoadingSplash);
 
         if (AppPurchase.getInstance().isPurchased(context)) {
             if (adListener != null) {
@@ -557,16 +304,13 @@ public class Admob {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                //check delay show ad splash
                 if (mInterstitialSplash != null) {
-                    Log.i(TAG, "loadSplashInterstitalAds:show ad on delay ");
                     if (showSplashIfReady)
-                        onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
+                        onShowSplash((AppCompatActivity) context, adListener);
                     else
                         adListener.onAdSplashReady();
                     return;
                 }
-                Log.i(TAG, "loadSplashInterstitalAds: delay validate");
                 isTimeDelay = true;
             }
         }, timeDelay);
@@ -576,12 +320,10 @@ public class Admob {
             rdTimeout = new Runnable() {
                 @Override
                 public void run() {
-                    Log.e(TAG, "loadSplashInterstitalAds: on timeout");
                     isTimeout = true;
                     if (mInterstitialSplash != null) {
-                        Log.i(TAG, "loadSplashInterstitalAds:show ad on timeout ");
                         if (showSplashIfReady)
-                            onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
+                            onShowSplash((AppCompatActivity) context, adListener);
                         else
                             adListener.onAdSplashReady();
                         return;
@@ -595,24 +337,20 @@ public class Admob {
             handlerTimeout.postDelayed(rdTimeout, timeOut);
         }
 
-//        if (isShowLoadingSplash)
-//            return;
         isShowLoadingSplash = true;
         getInterstitialAds(context, id, new AdCallback() {
             @Override
             public void onInterstitialLoad(InterstitialAd interstitialAd) {
                 super.onInterstitialLoad(interstitialAd);
-                Log.e(TAG, "loadSplashInterstitalAds  end time loading success:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
                 if (isTimeout)
                     return;
                 if (interstitialAd != null) {
                     mInterstitialSplash = interstitialAd;
                     if (isTimeDelay) {
                         if (showSplashIfReady)
-                            onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
+                            onShowSplash((AppCompatActivity) context, adListener);
                         else
                             adListener.onAdSplashReady();
-                        Log.i(TAG, "loadSplashInterstitalAds:show ad on loaded ");
                     }
                 }
             }
@@ -629,7 +367,6 @@ public class Admob {
             @Override
             public void onAdFailedToLoad(LoadAdError i) {
                 super.onAdFailedToLoad(i);
-                Log.e(TAG, "loadSplashInterstitalAds  end time loading error:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
                 if (isTimeout)
                     return;
                 if (adListener != null) {
@@ -637,121 +374,15 @@ public class Admob {
                     if (handlerTimeout != null && rdTimeout != null) {
                         handlerTimeout.removeCallbacks(rdTimeout);
                     }
-                    if (i != null)
-                        Log.e(TAG, "loadSplashInterstitalAds: load fail " + i.getMessage());
                     adListener.onAdFailedToLoad(i);
                 }
             }
-        }, tokenAdjust);
+        });
 
     }
 
-    public void loadSplashInterstitialAds(final Context context, String id, long timeOut, long timeDelay, boolean isShow, boolean showSplashIfReady, AdCallback adListener, String tokenAdjust) {
-        isTimeDelay = false;
-        isTimeout = false;
-        Log.i(TAG, "loadSplashInterstitialAds  start time loading:" + Calendar.getInstance().getTimeInMillis() + "    ShowLoadingSplash:" + isShowLoadingSplash);
-
-        if (AppPurchase.getInstance().isPurchased(context)) {
-            if (adListener != null) {
-                adListener.onNextAction();
-            }
-            return;
-        }
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                //check delay show ad splash
-                if (mInterstitialSplash != null) {
-                    Log.i(TAG, "loadSplashInterstitialAds:show ad on delay ");
-                    if (showSplashIfReady && isShow)
-                        onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
-                    else
-                        adListener.onAdSplashReady();
-                    return;
-                }
-                Log.i(TAG, "loadSplashInterstitialAds: delay validate");
-                isTimeDelay = true;
-            }
-        }, timeDelay);
-
-        if (timeOut > 0) {
-            handlerTimeout = new Handler();
-            rdTimeout = new Runnable() {
-                @Override
-                public void run() {
-                    Log.e(TAG, "loadSplashInterstitialAds: on timeout");
-                    isTimeout = true;
-                    if (mInterstitialSplash != null) {
-                        Log.i(TAG, "loadSplashInterstitialAds:show ad on timeout ");
-                        if (showSplashIfReady && isShow)
-                            onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
-                        else
-                            adListener.onAdSplashReady();
-                        return;
-                    }
-                    if (adListener != null) {
-                        adListener.onNextAction();
-                        isShowLoadingSplash = false;
-                    }
-                }
-            };
-            handlerTimeout.postDelayed(rdTimeout, timeOut);
-        }
-
-//        if (isShowLoadingSplash)
-//            return;
+    public void onShowSplash(AppCompatActivity activity, AdCallback adListener) {
         isShowLoadingSplash = true;
-        getInterstitialAds(context, id, new AdCallback() {
-            @Override
-            public void onInterstitialLoad(InterstitialAd interstitialAd) {
-                super.onInterstitialLoad(interstitialAd);
-                Log.e(TAG, "loadSplashInterstitialAds  end time loading success:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
-                if (isTimeout)
-                    return;
-                if (interstitialAd != null) {
-                    mInterstitialSplash = interstitialAd;
-                    if (isTimeDelay) {
-                        if (showSplashIfReady && isShow)
-                            onShowSplash((AppCompatActivity) context, adListener, tokenAdjust);
-                        else
-                            adListener.onAdSplashReady();
-                        Log.i(TAG, "loadSplashInterstitialAds:show ad on loaded ");
-                    }
-                }
-            }
-
-            @Override
-            public void onAdFailedToShow(@Nullable AdError adError) {
-                super.onAdFailedToShow(adError);
-                if (adListener != null) {
-                    adListener.onAdFailedToShow(adError);
-                    adListener.onNextAction();
-                }
-            }
-
-            @Override
-            public void onAdFailedToLoad(LoadAdError i) {
-                super.onAdFailedToLoad(i);
-                Log.e(TAG, "loadSplashInterstitalAds  end time loading error:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
-                if (isTimeout)
-                    return;
-                if (adListener != null) {
-                    adListener.onNextAction();
-                    if (handlerTimeout != null && rdTimeout != null) {
-                        handlerTimeout.removeCallbacks(rdTimeout);
-                    }
-                    if (i != null)
-                        Log.e(TAG, "loadSplashInterstitalAds: load fail " + i.getMessage());
-                    adListener.onAdFailedToLoad(i);
-                }
-            }
-        }, tokenAdjust);
-
-    }
-
-    public void onShowSplash(AppCompatActivity activity, AdCallback adListener, String tokenAdjust) {
-        isShowLoadingSplash = true;
-        Log.d(TAG, "onShowSplash: ");
 
         if (mInterstitialSplash == null) {
             adListener.onNextAction();
@@ -759,14 +390,11 @@ public class Admob {
         }
 
         mInterstitialSplash.setOnPaidEventListener(adValue -> {
-            Log.d(TAG, "OnPaidEvent splash:" + adValue.getValueMicros());
-
             ITGLogEventManager.logPaidAdImpression(context,
                     adValue,
                     mInterstitialSplash.getAdUnitId(),
                     mInterstitialSplash.getResponseInfo()
                             .getMediationAdapterClassName(), AdType.INTERSTITIAL);
-
             if (tokenAdjust != null) {
                 ITGLogEventManager.logPaidAdjustWithToken(adValue, mInterstitialSplash.getAdUnitId(), tokenAdjust);
             }
@@ -783,14 +411,12 @@ public class Admob {
         mInterstitialSplash.setFullScreenContentCallback(new FullScreenContentCallback() {
             @Override
             public void onAdShowedFullScreenContent() {
-                Log.d(TAG, " Splash:onAdShowedFullScreenContent ");
                 AppOpenManager.getInstance().setInterstitialShowing(true);
                 isShowLoadingSplash = false;
             }
 
             @Override
             public void onAdDismissedFullScreenContent() {
-                Log.d(TAG, " Splash:onAdDismissedFullScreenContent ");
                 AppOpenManager.getInstance().setInterstitialShowing(false);
                 mInterstitialSplash = null;
                 if (adListener != null) {
@@ -808,7 +434,6 @@ public class Admob {
 
             @Override
             public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
-                Log.e(TAG, "Splash onAdFailedToShowFullScreenContent: " + adError.getMessage());
                 mInterstitialSplash = null;
                 isShowLoadingSplash = false;
                 if (adListener != null) {
@@ -849,6 +474,7 @@ public class Admob {
                     dialog.show();
                     AppOpenManager.getInstance().setInterstitialShowing(true);
                 } catch (Exception e) {
+                    assert adListener != null;
                     adListener.onNextAction();
                     return;
                 }
@@ -865,8 +491,7 @@ public class Admob {
                                 dialog.dismiss();
                         }, 1500);
                     }
-                    if (activity != null && mInterstitialSplash != null) {
-                        Log.i(TAG, "start show InterstitialAd " + activity.getLifecycle().getCurrentState().name() + "/" + ProcessLifecycleOwner.get().getLifecycle().getCurrentState().name());
+                    if (mInterstitialSplash != null) {
                         mInterstitialSplash.show(activity);
                         isShowLoadingSplash = false;
                     } else if (adListener != null) {
@@ -880,21 +505,19 @@ public class Admob {
                     if (dialog != null && dialog.isShowing() && !activity.isDestroyed())
                         dialog.dismiss();
                     isShowLoadingSplash = false;
-                    Log.e(TAG, "onShowSplash:   show fail in background after show loading ad");
-                    adListener.onAdFailedToShow(new AdError(0, " show fail in background after show loading ad", "ITGAd"));
+                    assert adListener != null;
+                    adListener.onAdFailedToShow(new AdError(0, "Show fail in background after show loading ad", "LuanDT"));
                 }
             }, 800);
 
         } else {
             isShowLoadingSplash = false;
-            Log.e(TAG, "onShowSplash: fail on background");
         }
     }
 
-    public void onShowSplash(AppCompatActivity activity, AdCallback adListener, InterstitialAd mInter, String tokenAdjust) {
+    public void onShowSplash(AppCompatActivity activity, AdCallback adListener, InterstitialAd mInter) {
         mInterstitialSplash = mInter;
         isShowLoadingSplash = true;
-        Log.d(TAG, "onShowSplash: ");
 
         if (mInter == null) {
             adListener.onNextAction();
@@ -902,8 +525,6 @@ public class Admob {
         }
 
         mInterstitialSplash.setOnPaidEventListener(adValue -> {
-            Log.d(TAG, "OnPaidEvent splash:" + adValue.getValueMicros());
-
             ITGLogEventManager.logPaidAdImpression(context,
                     adValue,
                     mInterstitialSplash.getAdUnitId(),
@@ -926,14 +547,12 @@ public class Admob {
         mInterstitialSplash.setFullScreenContentCallback(new FullScreenContentCallback() {
             @Override
             public void onAdShowedFullScreenContent() {
-                Log.d(TAG, " Splash:onAdShowedFullScreenContent ");
                 AppOpenManager.getInstance().setInterstitialShowing(true);
                 isShowLoadingSplash = false;
             }
 
             @Override
             public void onAdDismissedFullScreenContent() {
-                Log.d(TAG, " Splash:onAdDismissedFullScreenContent ");
                 AppOpenManager.getInstance().setInterstitialShowing(false);
                 mInterstitialSplash = null;
                 if (adListener != null) {
@@ -951,7 +570,6 @@ public class Admob {
 
             @Override
             public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
-                Log.e(TAG, "Splash onAdFailedToShowFullScreenContent: " + adError.getMessage());
                 mInterstitialSplash = null;
                 isShowLoadingSplash = false;
                 if (adListener != null) {
@@ -1008,8 +626,7 @@ public class Admob {
                                 dialog.dismiss();
                         }, 1500);
                     }
-                    if (activity != null && mInterstitialSplash != null) {
-                        Log.i(TAG, "start show InterstitialAd " + activity.getLifecycle().getCurrentState().name() + "/" + ProcessLifecycleOwner.get().getLifecycle().getCurrentState().name());
+                    if (mInterstitialSplash != null) {
                         mInterstitialSplash.show(activity);
                         isShowLoadingSplash = false;
                     } else if (adListener != null) {
@@ -1023,126 +640,32 @@ public class Admob {
                     if (dialog != null && dialog.isShowing() && !activity.isDestroyed())
                         dialog.dismiss();
                     isShowLoadingSplash = false;
-                    Log.e(TAG, "onShowSplash:   show fail in background after show loading ad");
-                    adListener.onAdFailedToShow(new AdError(0, " show fail in background after show loading ad", "ITGAd"));
+                    assert adListener != null;
+                    adListener.onAdFailedToShow(new AdError(0, "Show fail in background after show loading ad", "LuanDT"));
                 }
             }, 800);
 
         } else {
             isShowLoadingSplash = false;
-            Log.e(TAG, "onShowSplash: fail on background");
         }
     }
 
-    public void onCheckShowSplashWhenFail(AppCompatActivity activity, AdCallback callback, int timeDelay, String tokenAdjust) {
+    public void onCheckShowSplashWhenFail(AppCompatActivity activity, AdCallback callback, int timeDelay) {
         new Handler(activity.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (interstitialSplashLoaded() && !isShowLoadingSplash()) {
-                    Log.i(TAG, "show ad splash when show fail in background");
-                    Admob.getInstance().onShowSplash(activity, callback, tokenAdjust);
+                    Admob.getInstance().onShowSplash(activity, callback);
                 }
             }
         }, timeDelay);
     }
 
-    public void loadInterstitialAds(Context context, String id, long timeOut, AdCallback adListener, String tokenAdjust) {
-        isTimeout = false;
-        if (AppPurchase.getInstance().isPurchased(context)) {
-            if (adListener != null) {
-                adListener.onNextAction();
-            }
-            return;
-        }
-        interstitialAd = null;
-        getInterstitialAds(context, id, new AdCallback() {
-            @Override
-            public void onInterstitialLoad(InterstitialAd interstitialAd) {
-                Admob.this.interstitialAd = interstitialAd;
-
-                if (interstitialAd == null) {
-                    if (adListener != null) {
-                        adListener.onAdFailedToLoad(null);
-                    }
-                    return;
-                }
-                if (handlerTimeout != null && rdTimeout != null) {
-                    handlerTimeout.removeCallbacks(rdTimeout);
-                }
-                if (isTimeout) {
-                    return;
-                }
-                if (adListener != null) {
-                    if (handlerTimeout != null && rdTimeout != null) {
-                        handlerTimeout.removeCallbacks(rdTimeout);
-                    }
-                    adListener.onInterstitialLoad(interstitialAd);
-                }
-
-                if (interstitialAd != null) {
-                    interstitialAd.setOnPaidEventListener(adValue -> {
-
-                        Log.d(TAG, "OnPaidEvent loadInterstitialAds:" + adValue.getValueMicros());
-                        ITGLogEventManager.logPaidAdImpression(context,
-                                adValue,
-                                interstitialAd.getAdUnitId(),
-                                interstitialAd.getResponseInfo()
-                                        .getMediationAdapterClassName(), AdType.INTERSTITIAL);
-
-                        if (tokenAdjust != null) {
-                            ITGLogEventManager.logPaidAdjustWithToken(adValue, interstitialAd.getAdUnitId(), tokenAdjust);
-                        }
-                    });
-                }
-            }
-
-            @Override
-            public void onAdFailedToLoad(LoadAdError i) {
-
-                if (adListener != null) {
-                    if (handlerTimeout != null && rdTimeout != null) {
-                        handlerTimeout.removeCallbacks(rdTimeout);
-                    }
-                    adListener.onAdFailedToLoad(i);
-                }
-            }
-        }, tokenAdjust);
-
-
-        if (timeOut > 0) {
-            handlerTimeout = new Handler();
-            rdTimeout = () -> {
-                isTimeout = true;
-                if (interstitialAd != null) {
-                    adListener.onInterstitialLoad(interstitialAd);
-                    return;
-                }
-                if (adListener != null) {
-
-                    adListener.onNextAction();
-                }
-            };
-            handlerTimeout.postDelayed(rdTimeout, timeOut);
-        }
-    }
-
-
-    /**
-     * Trả về 1 InterstitialAd và request Ads
-     *
-     * @param context
-     * @param id
-     * @return
-     */
-    public void getInterstitialAds(Context context, String id, AdCallback adCallback, String tokenAdjust) {
-        if (Arrays.asList(context.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(context, INTERS_ADS, id);
-        }
-        if (AppPurchase.getInstance().isPurchased(context) || AdmodHelper.getNumClickAdsPerDay(context, id) >= maxClickAds) {
+    public void getInterstitialAds(Context context, String id, AdCallback adCallback) {
+        if (AppPurchase.getInstance().isPurchased(context) || AdmobHelper.getNumClickAdsPerDay(context, id) >= maxClickAds) {
             adCallback.onInterstitialLoad(null);
             return;
         }
-
 
         InterstitialAd.load(context, id, getAdRequest(),
                 new InterstitialAdLoadCallback() {
@@ -1151,26 +674,20 @@ public class Admob {
                         if (adCallback != null)
                             adCallback.onInterstitialLoad(interstitialAd);
 
-                        //tracking adjust
                         interstitialAd.setOnPaidEventListener(adValue -> {
-                            Log.d(TAG, "OnPaidEvent getInterstitialAds:" + adValue.getValueMicros());
-
                             ITGLogEventManager.logPaidAdImpression(context,
                                     adValue,
                                     interstitialAd.getAdUnitId(),
                                     interstitialAd.getResponseInfo()
                                             .getMediationAdapterClassName(), AdType.INTERSTITIAL);
-
                             if (tokenAdjust != null) {
                                 ITGLogEventManager.logPaidAdjustWithToken(adValue, interstitialAd.getAdUnitId(), tokenAdjust);
                             }
                         });
-                        Log.i(TAG, "InterstitialAds onAdLoaded");
                     }
 
                     @Override
                     public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                        // Handle the error
                         Log.i(TAG, loadAdError.getMessage());
                         if (adCallback != null)
                             adCallback.onAdFailedToLoad(loadAdError);
@@ -1180,15 +697,6 @@ public class Admob {
 
     }
 
-
-    /**
-     * Hiển thị ads  timeout
-     * Sử dụng khi reopen app in splash
-     *
-     * @param context
-     * @param mInterstitialAd
-     * @param timeDelay
-     */
     public void showInterstitialAdByTimes(final Context context, final InterstitialAd mInterstitialAd, final AdCallback callback, long timeDelay) {
         if (timeDelay > 0) {
             handlerTimeout = new Handler();
@@ -1204,18 +712,8 @@ public class Admob {
         }
     }
 
-
-    /**
-     * Hiển thị ads theo số lần được xác định trước và callback result
-     * vd: click vào 3 lần thì show ads full.
-     * AdmodHelper.setupAdmodData(context) -> kiểm tra xem app đc hoạt động đc 1 ngày chưa nếu YES thì reset lại số lần click vào ads
-     *
-     * @param context
-     * @param mInterstitialAd
-     * @param callback
-     */
     public void showInterstitialAdByTimes(final Context context, InterstitialAd mInterstitialAd, final AdCallback callback) {
-        AdmodHelper.setupAdmodData(context);
+        AdmobHelper.setupAdmobData(context);
         if (AppPurchase.getInstance().isPurchased(context)) {
             callback.onNextAction();
             return;
@@ -1232,9 +730,8 @@ public class Admob {
             @Override
             public void onAdDismissedFullScreenContent() {
                 super.onAdDismissedFullScreenContent();
-                // Called when fullscreen content is dismissed.
-
                 AppOpenManager.getInstance().setInterstitialShowing(false);
+                SharePreferenceUtils.setLastImpressionInterstitialTime(context);
                 if (callback != null) {
                     if (!openActivityAfterShowInterAds) {
                         callback.onNextAction();
@@ -1244,14 +741,11 @@ public class Admob {
                 if (dialog != null) {
                     dialog.dismiss();
                 }
-                Log.e(TAG, "onAdDismissedFullScreenContent");
             }
 
             @Override
             public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
                 super.onAdFailedToShowFullScreenContent(adError);
-                Log.e(TAG, "onAdFailedToShowFullScreenContent: " + adError.getMessage());
-                // Called when fullscreen content failed to show.
                 if (callback != null) {
                     callback.onAdFailedToShow(adError);
                     if (!openActivityAfterShowInterAds) {
@@ -1267,10 +761,7 @@ public class Admob {
             @Override
             public void onAdShowedFullScreenContent() {
                 super.onAdShowedFullScreenContent();
-                Log.e(TAG, "onAdShowedFullScreenContent ");
-                SharePreferenceUtils.setLastImpressionInterstitialTime(context);
                 AppOpenManager.getInstance().setInterstitialShowing(true);
-                // Called when fullscreen content is shown.
             }
 
             @Override
@@ -1285,7 +776,7 @@ public class Admob {
             }
         });
 
-        if (AdmodHelper.getNumClickAdsPerDay(context, mInterstitialAd.getAdUnitId()) < maxClickAds) {
+        if (AdmobHelper.getNumClickAdsPerDay(context, mInterstitialAd.getAdUnitId()) < maxClickAds) {
             showInterstitialAd(context, mInterstitialAd, callback);
             return;
         }
@@ -1294,26 +785,11 @@ public class Admob {
         }
     }
 
-
-    /**
-     * Bắt buộc hiển thị  ads full và callback result
-     *
-     * @param context
-     * @param mInterstitialAd
-     * @param callback
-     */
     public void forceShowInterstitial(Context context, InterstitialAd mInterstitialAd, final AdCallback callback) {
         currentClicked = numShowAds;
         showInterstitialAdByTimes(context, mInterstitialAd, callback);
     }
 
-    /**
-     * Kiểm tra và hiện thị ads
-     *
-     * @param context
-     * @param mInterstitialAd
-     * @param callback
-     */
     private void showInterstitialAd(Context context, InterstitialAd mInterstitialAd, AdCallback callback) {
         currentClicked++;
         if (currentClicked >= numShowAds && mInterstitialAd != null) {
@@ -1344,13 +820,11 @@ public class Admob {
                                     dialog.dismiss();
                             }, 1500);
                         }
-                        Log.i(TAG, "start show InterstitialAd " + ((AppCompatActivity) context).getLifecycle().getCurrentState().name() + "/" + ProcessLifecycleOwner.get().getLifecycle().getCurrentState().name());
                         mInterstitialAd.show((Activity) context);
                     } else {
                         if (dialog != null && dialog.isShowing() && !((Activity) context).isDestroyed())
                             dialog.dismiss();
-                        Log.e(TAG, "showInterstitialAd:   show fail in background after show loading ad");
-                        callback.onAdFailedToShow(new AdError(0, " show fail in background after show loading ad", "ITGAd"));
+                        callback.onAdFailedToShow(new AdError(0, "Show fail in background after show loading ad", "LuanDT"));
                     }
                 }, 800);
             }
@@ -1363,220 +837,103 @@ public class Admob {
         }
     }
 
-    /**
-     * Load quảng cáo Banner Trong Activity
-     *
-     * @param mActivity
-     * @param id
-     */
-    public void loadBanner(final Activity mActivity, String id, String tokenAdjust) {
+    public void loadBanner(final Activity mActivity, String id) {
         final FrameLayout adContainer = mActivity.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = mActivity.findViewById(R.id.shimmer_container_banner);
-        loadBanner(mActivity, id, adContainer, containerShimmer, null, false, BANNER_INLINE_LARGE_STYLE, tokenAdjust);
+        loadBanner(mActivity, id, adContainer, containerShimmer, null, false, BANNER_INLINE_LARGE_STYLE);
     }
 
-    /**
-     * Load quảng cáo Banner Trong Activity
-     *
-     * @param mActivity
-     * @param id
-     */
-    public void loadBanner(final Activity mActivity, String id, AdCallback callback, String tokenAdjust) {
+    public void loadBanner(final Activity mActivity, String id, AdCallback callback) {
         final FrameLayout adContainer = mActivity.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = mActivity.findViewById(R.id.shimmer_container_banner);
-        loadBanner(mActivity, id, adContainer, containerShimmer, callback, false, BANNER_INLINE_LARGE_STYLE, tokenAdjust);
+        loadBanner(mActivity, id, adContainer, containerShimmer, callback, false, BANNER_INLINE_LARGE_STYLE);
     }
 
-
-    /**
-     * Load quảng cáo Banner Trong Activity set Inline adaptive banners
-     *
-     * @param mActivity
-     * @param id
-     * @deprecated Using loadInlineBanner()
-     */
     @Deprecated
-    public void loadBanner(final Activity mActivity, String id, Boolean useInlineAdaptive, String tokenAdjust) {
+    public void loadBanner(final Activity mActivity, String id, Boolean useInlineAdaptive) {
         final FrameLayout adContainer = mActivity.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = mActivity.findViewById(R.id.shimmer_container_banner);
-        loadBanner(mActivity, id, adContainer, containerShimmer, null, useInlineAdaptive, BANNER_INLINE_LARGE_STYLE, tokenAdjust);
+        loadBanner(mActivity, id, adContainer, containerShimmer, null, useInlineAdaptive, BANNER_INLINE_LARGE_STYLE);
     }
 
-    /**
-     * Load quảng cáo Banner Trong Activity set Inline adaptive banners
-     *
-     * @param activity
-     * @param id
-     * @param inlineStyle
-     */
-    public void loadInlineBanner(final Activity activity, String id, String inlineStyle, String tokenAdjust) {
+    public void loadInlineBanner(final Activity activity, String id, String inlineStyle) {
         final FrameLayout adContainer = activity.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = activity.findViewById(R.id.shimmer_container_banner);
-        loadBanner(activity, id, adContainer, containerShimmer, null, true, inlineStyle, tokenAdjust);
+        loadBanner(activity, id, adContainer, containerShimmer, null, true, inlineStyle);
     }
 
-    /**
-     * Load quảng cáo Banner Trong Activity set Inline adaptive banners
-     *
-     * @param mActivity
-     * @param id
-     * @param callback
-     * @param useInlineAdaptive
-     * @deprecated Using loadInlineBanner() with callback
-     */
     @Deprecated
-    public void loadBanner(final Activity mActivity, String id, final AdCallback callback, Boolean useInlineAdaptive, String tokenAdjust) {
+    public void loadBanner(final Activity mActivity, String id, final AdCallback callback, Boolean useInlineAdaptive) {
         final FrameLayout adContainer = mActivity.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = mActivity.findViewById(R.id.shimmer_container_banner);
-        loadBanner(mActivity, id, adContainer, containerShimmer, callback, useInlineAdaptive, BANNER_INLINE_LARGE_STYLE, tokenAdjust);
+        loadBanner(mActivity, id, adContainer, containerShimmer, callback, useInlineAdaptive, BANNER_INLINE_LARGE_STYLE);
     }
 
-    /**
-     * Load quảng cáo Banner Trong Activity set Inline adaptive banners
-     *
-     * @param activity
-     * @param id
-     * @param inlineStyle
-     * @param callback
-     */
-    public void loadInlineBanner(final Activity activity, String id, String inlineStyle, final AdCallback callback, String tokenAdjust) {
+    public void loadInlineBanner(final Activity activity, String id, String inlineStyle, final AdCallback callback) {
         final FrameLayout adContainer = activity.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = activity.findViewById(R.id.shimmer_container_banner);
-        loadBanner(activity, id, adContainer, containerShimmer, callback, true, inlineStyle, tokenAdjust);
+        loadBanner(activity, id, adContainer, containerShimmer, callback, true, inlineStyle);
     }
 
-    /**
-     * Load quảng cáo Collapsible Banner Trong Activity
-     *
-     * @param mActivity
-     * @param id
-     */
-    public void loadCollapsibleBanner(final Activity mActivity, String id, String gravity, final AdCallback callback, String tokenAdjust) {
+    public void loadCollapsibleBanner(final Activity mActivity, String id, String gravity, final AdCallback callback) {
         final FrameLayout adContainer = mActivity.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = mActivity.findViewById(R.id.shimmer_container_banner);
-        loadCollapsibleBanner(mActivity, id, gravity, adContainer, containerShimmer, callback, tokenAdjust);
+        loadCollapsibleBanner(mActivity, id, gravity, adContainer, containerShimmer, callback);
     }
 
-    /**
-     * Load quảng cáo Collapsible Banner Size Medium Trong Activity
-     *
-     * @param mActivity
-     * @param id
-     */
-    public void loadCollapsibleBannerSizeMedium(final Activity mActivity, String id, String gravity, AdSize sizeBanner, final AdCallback callback, String tokenAdjust) {
+    public void loadCollapsibleBannerSizeMedium(final Activity mActivity, String id, String gravity, AdSize sizeBanner, final AdCallback callback) {
         final FrameLayout adContainer = mActivity.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = mActivity.findViewById(R.id.shimmer_container_banner);
-        loadCollapsibleAutoSizeMedium(mActivity, id, gravity, sizeBanner, adContainer, containerShimmer, callback, tokenAdjust);
+        loadCollapsibleAutoSizeMedium(mActivity, id, gravity, sizeBanner, adContainer, containerShimmer, callback);
     }
 
-    /**
-     * Load Quảng Cáo Banner Trong Fragment
-     *
-     * @param mActivity
-     * @param id
-     * @param rootView
-     */
-    public void loadBannerFragment(final Activity mActivity, String id, final View rootView, String tokenAdjust) {
+    public void loadBannerFragment(final Activity mActivity, String id, final View rootView) {
         final FrameLayout adContainer = rootView.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = rootView.findViewById(R.id.shimmer_container_banner);
-        loadBanner(mActivity, id, adContainer, containerShimmer, null, false, BANNER_INLINE_LARGE_STYLE, tokenAdjust);
+        loadBanner(mActivity, id, adContainer, containerShimmer, null, false, BANNER_INLINE_LARGE_STYLE);
     }
 
-    /**
-     * Load Quảng Cáo Banner Trong Fragment
-     *
-     * @param mActivity
-     * @param id
-     * @param rootView
-     */
-    public void loadBannerFragment(final Activity mActivity, String id, final View rootView, final AdCallback callback, String tokenAdjust) {
+    public void loadBannerFragment(final Activity mActivity, String id, final View rootView, final AdCallback callback) {
         final FrameLayout adContainer = rootView.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = rootView.findViewById(R.id.shimmer_container_banner);
-        loadBanner(mActivity, id, adContainer, containerShimmer, callback, false, BANNER_INLINE_LARGE_STYLE, tokenAdjust);
+        loadBanner(mActivity, id, adContainer, containerShimmer, callback, false, BANNER_INLINE_LARGE_STYLE);
     }
 
-    /**
-     * Load Quảng Cáo Banner Trong Fragment set Inline adaptive banners
-     *
-     * @param mActivity
-     * @param id
-     * @param rootView
-     * @deprecated Using loadInlineBannerFragment()
-     */
     @Deprecated
-    public void loadBannerFragment(final Activity mActivity, String id, final View rootView, Boolean useInlineAdaptive, String tokenAdjust) {
+    public void loadBannerFragment(final Activity mActivity, String id, final View rootView, Boolean useInlineAdaptive) {
         final FrameLayout adContainer = rootView.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = rootView.findViewById(R.id.shimmer_container_banner);
-        loadBanner(mActivity, id, adContainer, containerShimmer, null, useInlineAdaptive, BANNER_INLINE_LARGE_STYLE, tokenAdjust);
+        loadBanner(mActivity, id, adContainer, containerShimmer, null, useInlineAdaptive, BANNER_INLINE_LARGE_STYLE);
     }
 
-    /**
-     * Load Quảng Cáo Banner Trong Fragment set Inline adaptive banners
-     *
-     * @param activity
-     * @param id
-     * @param rootView
-     * @param inlineStyle
-     */
-    public void loadInlineBannerFragment(final Activity activity, String id, final View rootView, String inlineStyle, String tokenAdjust) {
+    public void loadInlineBannerFragment(final Activity activity, String id, final View rootView, String inlineStyle) {
         final FrameLayout adContainer = rootView.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = rootView.findViewById(R.id.shimmer_container_banner);
-        loadBanner(activity, id, adContainer, containerShimmer, null, true, inlineStyle, tokenAdjust);
+        loadBanner(activity, id, adContainer, containerShimmer, null, true, inlineStyle);
     }
 
-    /**
-     * Load Quảng Cáo Banner Trong Fragment set Inline adaptive banners
-     *
-     * @param mActivity
-     * @param id
-     * @param rootView
-     * @param callback
-     * @param useInlineAdaptive
-     * @deprecated Using loadInlineBannerFragment() with callback
-     */
     @Deprecated
-    public void loadBannerFragment(final Activity mActivity, String id, final View rootView, final AdCallback callback, Boolean useInlineAdaptive, String tokenAdjust) {
+    public void loadBannerFragment(final Activity mActivity, String id, final View rootView, final AdCallback callback, Boolean useInlineAdaptive) {
         final FrameLayout adContainer = rootView.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = rootView.findViewById(R.id.shimmer_container_banner);
-        loadBanner(mActivity, id, adContainer, containerShimmer, callback, useInlineAdaptive, BANNER_INLINE_LARGE_STYLE, tokenAdjust);
+        loadBanner(mActivity, id, adContainer, containerShimmer, callback, useInlineAdaptive, BANNER_INLINE_LARGE_STYLE);
     }
 
-    /**
-     * Load Quảng Cáo Banner Trong Fragment set Inline adaptive banners
-     *
-     * @param activity
-     * @param id
-     * @param rootView
-     * @param inlineStyle
-     * @param callback
-     */
-    public void loadInlineBannerFragment(final Activity activity, String id, final View rootView, String inlineStyle, final AdCallback callback, String tokenAdjust) {
+    public void loadInlineBannerFragment(final Activity activity, String id, final View rootView, String inlineStyle, final AdCallback callback) {
         final FrameLayout adContainer = rootView.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = rootView.findViewById(R.id.shimmer_container_banner);
-        loadBanner(activity, id, adContainer, containerShimmer, callback, true, inlineStyle, tokenAdjust);
+        loadBanner(activity, id, adContainer, containerShimmer, callback, true, inlineStyle);
     }
 
-    /**
-     * Load quảng cáo Collapsible Banner Trong Fragment
-     *
-     * @param mActivity
-     * @param id
-     * @param rootView
-     * @param gravity
-     * @param callback
-     */
-    public void loadCollapsibleBannerFragment(final Activity mActivity, String id, final View rootView, String gravity, final AdCallback callback, String tokenAdjust) {
+    public void loadCollapsibleBannerFragment(final Activity mActivity, String id, final View rootView, String gravity, final AdCallback callback) {
         final FrameLayout adContainer = rootView.findViewById(R.id.banner_container);
         final ShimmerFrameLayout containerShimmer = rootView.findViewById(R.id.shimmer_container_banner);
-        loadCollapsibleBanner(mActivity, id, gravity, adContainer, containerShimmer, callback, tokenAdjust);
+        loadCollapsibleBanner(mActivity, id, gravity, adContainer, containerShimmer, callback);
     }
 
     private void loadBanner(final Activity mActivity, String id,
                             final FrameLayout adContainer, final ShimmerFrameLayout containerShimmer,
-                            final AdCallback callback, Boolean useInlineAdaptive, String inlineStyle, String tokenAdjust) {
-        if (Arrays.asList(mActivity.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(mActivity, BANNER_ADS, id);
-        }
+                            final AdCallback callback, Boolean useInlineAdaptive, String inlineStyle) {
         if (AppPurchase.getInstance().isPurchased(mActivity)) {
             containerShimmer.setVisibility(View.GONE);
             return;
@@ -1626,7 +983,6 @@ public class Admob {
                                     adView.getAdUnitId(),
                                     adView.getResponseInfo()
                                             .getMediationAdapterClassName(), AdType.BANNER);
-
                             if (tokenAdjust != null) {
                                 ITGLogEventManager.logPaidAdjustWithToken(adValue, adView.getAdUnitId(), tokenAdjust);
                             }
@@ -1666,10 +1022,7 @@ public class Admob {
     }
 
     private void loadCollapsibleBanner(final Activity mActivity, String id, String gravity, final FrameLayout adContainer,
-                                       final ShimmerFrameLayout containerShimmer, final AdCallback callback, String tokenAdjust) {
-        if (Arrays.asList(mActivity.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(mActivity, BANNER_ADS, id);
-        }
+                                       final ShimmerFrameLayout containerShimmer, final AdCallback callback) {
         if (AppPurchase.getInstance().isPurchased(mActivity)) {
             containerShimmer.setVisibility(View.GONE);
             return;
@@ -1713,7 +1066,6 @@ public class Admob {
                                 adView.getAdUnitId(),
                                 adView.getResponseInfo()
                                         .getMediationAdapterClassName(), AdType.BANNER);
-
                         if (tokenAdjust != null) {
                             ITGLogEventManager.logPaidAdjustWithToken(adValue, adView.getAdUnitId(), tokenAdjust);
                         }
@@ -1740,10 +1092,7 @@ public class Admob {
     }
 
     private void loadCollapsibleAutoSizeMedium(final Activity mActivity, String id, String gravity, AdSize sizeBanner, final FrameLayout adContainer,
-                                               final ShimmerFrameLayout containerShimmer, final AdCallback callback, String tokenAdjust) {
-        if (Arrays.asList(mActivity.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(mActivity, BANNER_ADS, id);
-        }
+                                               final ShimmerFrameLayout containerShimmer, final AdCallback callback) {
         if (AppPurchase.getInstance().isPurchased(mActivity)) {
             containerShimmer.setVisibility(View.GONE);
             return;
@@ -1787,7 +1136,6 @@ public class Admob {
                                 adView.getAdUnitId(),
                                 adView.getResponseInfo()
                                         .getMediationAdapterClassName(), AdType.BANNER);
-
                         if (tokenAdjust != null) {
                             ITGLogEventManager.logPaidAdjustWithToken(adValue, adView.getAdUnitId(), tokenAdjust);
                         }
@@ -1813,8 +1161,29 @@ public class Admob {
         }
     }
 
-    private AdSize getAdSize(Activity mActivity, Boolean useInlineAdaptive, String inlineStyle) {
+    private void loadInlineAdaptiveBanner(final Activity mActivity, String id, AdCallback adCallback) {
+        @SuppressLint("VisibleForTests") AdSize adSize = AdSize.getCurrentOrientationInlineAdaptiveBannerAdSize(mActivity, 320);
+        AdView bannerView = new AdView(mActivity);
+        bannerView.setAdUnitId(id);
+        bannerView.setAdSize(adSize);
+        bannerView.setAdListener(new AdListener() {
+            @Override
+            public void onAdLoaded() {
+                super.onAdLoaded();
+                adCallback.onAdLoaded();
+            }
 
+            @Override
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                super.onAdFailedToLoad(loadAdError);
+                adCallback.onAdFailedToLoad(loadAdError);
+            }
+        });
+        bannerView.loadAd(getAdRequest());
+    }
+
+    @SuppressLint("VisibleForTests")
+    private AdSize getAdSize(Activity mActivity, Boolean useInlineAdaptive, String inlineStyle) {
         // Step 2 - Determine the screen width (less decorations) to use for the ad width.
         Display display = mActivity.getWindowManager().getDefaultDisplay();
         DisplayMetrics outMetrics = new DisplayMetrics();
@@ -1837,63 +1206,41 @@ public class Admob {
 
     }
 
+    @SuppressLint("VisibleForTests")
     private AdRequest getAdRequestForCollapsibleBanner(String gravity) {
         AdRequest.Builder builder = new AdRequest.Builder();
         Bundle admobExtras = new Bundle();
         admobExtras.putString("collapsible", gravity);
+        admobExtras.putString("collapsible_request_id", UUID.randomUUID().toString());
         builder.addNetworkExtrasBundle(AdMobAdapter.class, admobExtras);
-        // no need from facebook sdk ver 6.12.0.0
-        /*if (isFan) {
-            Bundle extras = new FacebookExtras()
-                    .setNativeBanner(true)
-                    .build();
-
-            builder.addNetworkExtrasBundle(FacebookAdapter.class, extras);
-        }*/
-
-        if (isAppLovin) {
-            Bundle extras = new AppLovinExtras.Builder()
-                    .setMuteAudio(true)
-                    .build();
-            builder.addNetworkExtrasBundle(ApplovinAdapter.class, extras);
-        }
         return builder.build();
     }
 
-    /**
-     * load quảng cáo big native
-     *
-     * @param mActivity
-     * @param id
-     */
-    public void loadNative(final Activity mActivity, String id, String tokenAdjust) {
+    public void loadNative(final Activity mActivity, String id) {
         final FrameLayout frameLayout = mActivity.findViewById(R.id.fl_adplaceholder);
         final ShimmerFrameLayout containerShimmer = mActivity.findViewById(R.id.shimmer_container_native);
-        loadNative(mActivity, containerShimmer, frameLayout, id, R.layout.custom_native_admob_free_size, tokenAdjust);
+        loadNative(mActivity, containerShimmer, frameLayout, id, R.layout.custom_native_admob_free_size);
     }
 
-    public void loadNativeFragment(final Activity mActivity, String id, View parent, String tokenAdjust) {
+    public void loadNativeFragment(final Activity mActivity, String id, View parent) {
         final FrameLayout frameLayout = parent.findViewById(R.id.fl_adplaceholder);
         final ShimmerFrameLayout containerShimmer = parent.findViewById(R.id.shimmer_container_native);
-        loadNative(mActivity, containerShimmer, frameLayout, id, R.layout.custom_native_admob_free_size, tokenAdjust);
+        loadNative(mActivity, containerShimmer, frameLayout, id, R.layout.custom_native_admob_free_size);
     }
 
-    public void loadSmallNative(final Activity mActivity, String adUnitId, String tokenAdjust) {
+    public void loadSmallNative(final Activity mActivity, String adUnitId) {
         final FrameLayout frameLayout = mActivity.findViewById(R.id.fl_adplaceholder);
         final ShimmerFrameLayout containerShimmer = mActivity.findViewById(R.id.shimmer_container_native);
-        loadNative(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_admod_medium, tokenAdjust);
+        loadNative(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_admob_medium);
     }
 
-    public void loadSmallNativeFragment(final Activity mActivity, String adUnitId, View parent, String tokenAdjust) {
+    public void loadSmallNativeFragment(final Activity mActivity, String adUnitId, View parent) {
         final FrameLayout frameLayout = parent.findViewById(R.id.fl_adplaceholder);
         final ShimmerFrameLayout containerShimmer = parent.findViewById(R.id.shimmer_container_native);
-        loadNative(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_admod_medium, tokenAdjust);
+        loadNative(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_admob_medium);
     }
 
-    public void loadNativeAd(Context context, String id, final AdCallback callback, String tokenAdjust) {
-        if (Arrays.asList(context.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(context, NATIVE_ADS, id);
-        }
+    public void loadNativeAd(Context context, String id, final AdCallback callback) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             return;
         }
@@ -1905,36 +1252,27 @@ public class Admob {
                 .setVideoOptions(videoOptions)
                 .build();
         AdLoader adLoader = new AdLoader.Builder(context, id)
-                .forNativeAd(new NativeAd.OnNativeAdLoadedListener() {
-
-                    @Override
-                    public void onNativeAdLoaded(@NonNull NativeAd nativeAd) {
-                        callback.onUnifiedNativeAdLoaded(nativeAd);
-                        nativeAd.setOnPaidEventListener(adValue -> {
-                            Log.d(TAG, "OnPaidEvent getInterstitalAds:" + adValue.getValueMicros());
-
-                            ITGLogEventManager.logPaidAdImpression(context,
-                                    adValue,
-                                    id,
-                                    nativeAd.getResponseInfo().getMediationAdapterClassName(), AdType.NATIVE);
-
-                            if (tokenAdjust != null) {
-                                ITGLogEventManager.logPaidAdjustWithToken(adValue, id, tokenAdjust);
-                            }
-                        });
-                    }
+                .forNativeAd(nativeAd -> {
+                    callback.onUnifiedNativeAdLoaded(nativeAd);
+                    nativeAd.setOnPaidEventListener(adValue -> {
+                        ITGLogEventManager.logPaidAdImpression(context,
+                                adValue,
+                                id,
+                                nativeAd.getResponseInfo().getMediationAdapterClassName(), AdType.NATIVE);
+                        if (tokenAdjust != null) {
+                            ITGLogEventManager.logPaidAdjustWithToken(adValue, id, tokenAdjust);
+                        }
+                    });
                 })
                 .withAdListener(new AdListener() {
                     @Override
                     public void onAdFailedToLoad(LoadAdError error) {
-                        Log.e(TAG, "NativeAd onAdFailedToLoad: " + error.getMessage());
                         callback.onAdFailedToLoad(error);
                     }
 
                     @Override
                     public void onAdImpression() {
                         super.onAdImpression();
-                        Log.d(TAG, "native onAdImpression");
                         if (callback != null) {
                             callback.onAdImpression();
                         }
@@ -1947,7 +1285,6 @@ public class Admob {
                             AppOpenManager.getInstance().disableAdResumeByClickAction();
                         if (callback != null) {
                             callback.onAdClicked();
-                            Log.d(TAG, "onAdClicked");
                         }
                         ITGLogEventManager.logClickAdsEvent(context, id);
                     }
@@ -1957,10 +1294,7 @@ public class Admob {
         adLoader.loadAd(getAdRequest());
     }
 
-    public void loadNativeAds(Context context, String id, final AdCallback callback, int countAd, String tokenAdjust) {
-        if (Arrays.asList(context.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(context, NATIVE_ADS, id);
-        }
+    public void loadNativeAds(Context context, String id, final AdCallback callback, int countAd) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             callback.onAdClosed();
             return;
@@ -1979,13 +1313,10 @@ public class Admob {
                     public void onNativeAdLoaded(@NonNull NativeAd nativeAd) {
                         callback.onUnifiedNativeAdLoaded(nativeAd);
                         nativeAd.setOnPaidEventListener(adValue -> {
-                            Log.d(TAG, "OnPaidEvent getInterstitalAds:" + adValue.getValueMicros());
-
                             ITGLogEventManager.logPaidAdImpression(context,
                                     adValue,
                                     id,
                                     nativeAd.getResponseInfo().getMediationAdapterClassName(), AdType.NATIVE);
-
                             if (tokenAdjust != null) {
                                 ITGLogEventManager.logPaidAdjustWithToken(adValue, id, tokenAdjust);
                             }
@@ -1995,7 +1326,6 @@ public class Admob {
                 .withAdListener(new AdListener() {
                     @Override
                     public void onAdFailedToLoad(LoadAdError error) {
-                        Log.e(TAG, "NativeAd onAdFailedToLoad: " + error.getMessage());
                         callback.onAdFailedToLoad(error);
                     }
 
@@ -2006,7 +1336,6 @@ public class Admob {
                             AppOpenManager.getInstance().disableAdResumeByClickAction();
                         if (callback != null) {
                             callback.onAdClicked();
-                            Log.d(TAG, "onAdClicked");
                         }
                         ITGLogEventManager.logClickAdsEvent(context, id);
                     }
@@ -2016,10 +1345,7 @@ public class Admob {
         adLoader.loadAds(getAdRequest(), countAd);
     }
 
-    private void loadNative(final Context context, final ShimmerFrameLayout containerShimmer, final FrameLayout frameLayout, final String id, final int layout, String tokenAdjust) {
-        if (Arrays.asList(context.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(context, NATIVE_ADS, id);
-        }
+    private void loadNative(final Context context, final ShimmerFrameLayout containerShimmer, final FrameLayout frameLayout, final String id, final int layout) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             containerShimmer.setVisibility(View.GONE);
             return;
@@ -2049,13 +1375,10 @@ public class Admob {
                         @SuppressLint("InflateParams") NativeAdView adView = (NativeAdView) LayoutInflater.from(context)
                                 .inflate(layout, null);
                         nativeAd.setOnPaidEventListener(adValue -> {
-                            Log.d(TAG, "OnPaidEvent native:" + adValue.getValueMicros());
-
                             ITGLogEventManager.logPaidAdImpression(context,
                                     adValue,
                                     id,
                                     nativeAd.getResponseInfo().getMediationAdapterClassName(), AdType.NATIVE);
-
                             if (tokenAdjust != null) {
                                 ITGLogEventManager.logPaidAdjustWithToken(adValue, id, tokenAdjust);
                             }
@@ -2070,7 +1393,6 @@ public class Admob {
                 .withAdListener(new AdListener() {
                     @Override
                     public void onAdFailedToLoad(LoadAdError error) {
-                        Log.e(TAG, "onAdFailedToLoad: " + error.getMessage());
                         containerShimmer.stopShimmer();
                         containerShimmer.setVisibility(View.GONE);
                         frameLayout.setVisibility(View.GONE);
@@ -2090,10 +1412,7 @@ public class Admob {
         adLoader.loadAd(getAdRequest());
     }
 
-    private void loadNative(final Context context, final ShimmerFrameLayout containerShimmer, final FrameLayout frameLayout, final String id, final int layout, final AdCallback callback, String tokenAdjust) {
-        if (Arrays.asList(context.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(context, NATIVE_ADS, id);
-        }
+    private void loadNative(final Context context, final ShimmerFrameLayout containerShimmer, final FrameLayout frameLayout, final String id, final int layout, final AdCallback callback) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             containerShimmer.setVisibility(View.GONE);
             return;
@@ -2123,13 +1442,10 @@ public class Admob {
                         @SuppressLint("InflateParams") NativeAdView adView = (NativeAdView) LayoutInflater.from(context)
                                 .inflate(layout, null);
                         nativeAd.setOnPaidEventListener(adValue -> {
-                            Log.d(TAG, "OnPaidEvent Native:" + adValue.getValueMicros());
-
                             ITGLogEventManager.logPaidAdImpression(context,
                                     adValue,
                                     id,
                                     nativeAd.getResponseInfo().getMediationAdapterClassName(), AdType.NATIVE);
-
                             if (tokenAdjust != null) {
                                 ITGLogEventManager.logPaidAdjustWithToken(adValue, id, tokenAdjust);
                             }
@@ -2143,7 +1459,6 @@ public class Admob {
                 .withAdListener(new AdListener() {
                     @Override
                     public void onAdFailedToLoad(LoadAdError error) {
-                        Log.e(TAG, "onAdFailedToLoad: " + error.getMessage());
                         containerShimmer.stopShimmer();
                         containerShimmer.setVisibility(View.GONE);
                         frameLayout.setVisibility(View.GONE);
@@ -2157,7 +1472,6 @@ public class Admob {
                             AppOpenManager.getInstance().disableAdResumeByClickAction();
                         if (callback != null) {
                             callback.onAdClicked();
-                            Log.d(TAG, "onAdClicked");
                         }
                         ITGLogEventManager.logClickAdsEvent(context, id);
                     }
@@ -2169,42 +1483,138 @@ public class Admob {
         adLoader.loadAd(getAdRequest());
     }
 
+    public void loadNativeAdsFullScreen(Context context, String id, final AdCallback callback) {
+        if (AppPurchase.getInstance().isPurchased(context)) {
+            return;
+        }
+
+        VideoOptions videoOptions =
+                new VideoOptions.Builder().setStartMuted(false).build();
+        NativeAdOptions adOptions =
+                new NativeAdOptions.Builder()
+                        .setMediaAspectRatio(MediaAspectRatio.PORTRAIT)
+                        .setVideoOptions(videoOptions)
+                        .build();
+        AdLoader adLoader = new AdLoader.Builder(context, id)
+                .forNativeAd(new NativeAd.OnNativeAdLoadedListener() {
+
+                    @Override
+                    public void onNativeAdLoaded(@NonNull NativeAd nativeAd) {
+                        callback.onUnifiedNativeAdLoaded(nativeAd);
+                        nativeAd.setOnPaidEventListener(adValue -> {
+                            ITGLogEventManager.logPaidAdImpression(context,
+                                    adValue,
+                                    id,
+                                    nativeAd.getResponseInfo().getMediationAdapterClassName(), AdType.NATIVE);
+
+                            if (tokenAdjust != null) {
+                                ITGLogEventManager.logPaidAdjustWithToken(adValue, id, tokenAdjust);
+                            }
+                        });
+                    }
+                })
+                .withAdListener(new AdListener() {
+                    @Override
+                    public void onAdFailedToLoad(LoadAdError error) {
+                        callback.onAdFailedToLoad(error);
+                    }
+
+                    @Override
+                    public void onAdClicked() {
+                        super.onAdClicked();
+                        if (disableAdResumeWhenClickAds)
+                            AppOpenManager.getInstance().disableAdResumeByClickAction();
+                        if (callback != null) {
+                            callback.onAdClicked();
+                        }
+                        ITGLogEventManager.logClickAdsEvent(context, id);
+                    }
+                })
+                .withNativeAdOptions(adOptions)
+                .build();
+        adLoader.loadAds(getAdRequest(), 5);
+
+    }
+
+    public void loadNativeAdsFullScreen(final Context context, final ShimmerFrameLayout containerShimmer, final FrameLayout frameLayout, final String id, final int layout, final AdCallback callback) {
+        if (AppPurchase.getInstance().isPurchased(context)) {
+            containerShimmer.setVisibility(View.GONE);
+            return;
+        }
+        frameLayout.removeAllViews();
+        frameLayout.setVisibility(View.GONE);
+        containerShimmer.setVisibility(View.VISIBLE);
+        containerShimmer.startShimmer();
+
+        VideoOptions videoOptions = new VideoOptions.Builder()
+                .setStartMuted(true)
+                .build();
+
+        NativeAdOptions adOptions = new NativeAdOptions.Builder()
+                .setMediaAspectRatio(MediaAspectRatio.PORTRAIT)
+                .setVideoOptions(videoOptions)
+                .build();
+
+
+        AdLoader adLoader = new AdLoader.Builder(context, id)
+                .forNativeAd(nativeAd -> {
+                    containerShimmer.stopShimmer();
+                    containerShimmer.setVisibility(View.GONE);
+                    frameLayout.setVisibility(View.VISIBLE);
+                    @SuppressLint("InflateParams") NativeAdView adView = (NativeAdView) LayoutInflater.from(context)
+                            .inflate(layout, null);
+                    nativeAd.setOnPaidEventListener(adValue -> {
+
+                        ITGLogEventManager.logPaidAdImpression(context,
+                                adValue,
+                                id,
+                                nativeAd.getResponseInfo().getMediationAdapterClassName(), AdType.NATIVE);
+                        if (tokenAdjust != null) {
+                            ITGLogEventManager.logPaidAdjustWithToken(adValue, id, tokenAdjust);
+                        }
+                    });
+                    populateUnifiedNativeAdView(nativeAd, adView);
+                    frameLayout.removeAllViews();
+                    frameLayout.addView(adView);
+                })
+                .withAdListener(new AdListener() {
+                    @Override
+                    public void onAdFailedToLoad(LoadAdError error) {
+                        containerShimmer.stopShimmer();
+                        containerShimmer.setVisibility(View.GONE);
+                        frameLayout.setVisibility(View.GONE);
+                    }
+
+
+                    @Override
+                    public void onAdClicked() {
+                        super.onAdClicked();
+                        if (disableAdResumeWhenClickAds)
+                            AppOpenManager.getInstance().disableAdResumeByClickAction();
+                        if (callback != null) {
+                            callback.onAdClicked();
+                        }
+                        ITGLogEventManager.logClickAdsEvent(context, id);
+                    }
+                })
+                .withNativeAdOptions(adOptions)
+                .build();
+
+
+        adLoader.loadAds(getAdRequest(), 5);
+
+    }
 
     public void populateUnifiedNativeAdView(NativeAd nativeAd, NativeAdView adView) {
-
         adView.setMediaView(adView.findViewById(R.id.ad_media));
-
-        if (adView.getMediaView() != null) {
-            adView.getMediaView().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (context != null && AppUtil.VARIANT_DEV) {
-                        float sizeMin = TypedValue.applyDimension(
-                                TypedValue.COMPLEX_UNIT_DIP,
-                                120,
-                                context.getResources().getDisplayMetrics()
-                        );
-                        Log.e(TAG, "Native sizeMin: " + sizeMin);
-                        Log.e(TAG, "Native w/h media : " + adView.getMediaView().getWidth() + "/" + adView.getMediaView().getHeight());
-                        if (adView.getMediaView().getWidth() < sizeMin || adView.getMediaView().getHeight() < sizeMin) {
-                            Toast.makeText(context, "Size media native not valid", Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                }
-            }, 1000);
-
-        }
-        // Set other ad assets.
         adView.setHeadlineView(adView.findViewById(R.id.ad_headline));
         adView.setBodyView(adView.findViewById(R.id.ad_body));
         adView.setCallToActionView(adView.findViewById(R.id.ad_call_to_action));
         adView.setIconView(adView.findViewById(R.id.ad_app_icon));
         adView.setPriceView(adView.findViewById(R.id.ad_price));
         adView.setStarRatingView(adView.findViewById(R.id.ad_stars));
-//        adView.setStoreView(adView.findViewById(R.id.ad_store));
         adView.setAdvertiserView(adView.findViewById(R.id.ad_advertiser));
 
-        // The headline is guaranteed to be in every UnifiedNativeAd.
         try {
             ((TextView) adView.getHeadlineView()).setText(nativeAd.getHeadline());
         } catch (Exception e) {
@@ -2257,18 +1667,7 @@ public class Admob {
         } catch (Exception e) {
             e.printStackTrace();
         }
-//
-//        try {
-//            if (nativeAd.getStore() == null) {
-//                Objects.requireNonNull(adView.getStoreView()).setVisibility(View.INVISIBLE);
-//            } else {
-//                Objects.requireNonNull(adView.getStoreView()).setVisibility(View.VISIBLE);
-//                ((TextView) adView.getStoreView()).setText(nativeAd.getStore());
-//            }
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
+
         try {
             if (nativeAd.getStarRating() == null) {
                 Objects.requireNonNull(adView.getStarRatingView()).setVisibility(View.INVISIBLE);
@@ -2290,10 +1689,6 @@ public class Admob {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        // This method tells the Google Mobile Ads SDK that you have finished populating your
-        // native ad view with this native ad. The SDK will populate the adView's MediaView
-        // with the media content from this native ad.
         adView.setNativeAd(nativeAd);
 
     }
@@ -2302,15 +1697,12 @@ public class Admob {
     private RewardedAd rewardedAd;
 
     /**
-     * Khởi tạo quảng cáo reward
+     * Khởi tạo ads reward
      *
      * @param context
      * @param id
      */
-    public void initRewardAds(Context context, String id, String tokenAdjust) {
-        if (Arrays.asList(context.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(context, REWARD_ADS, id);
-        }
+    public void initRewardAds(Context context, String id) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             return;
         }
@@ -2323,14 +1715,10 @@ public class Admob {
             public void onAdLoaded(@NonNull RewardedAd rewardedAd) {
                 Admob.this.rewardedAd = rewardedAd;
                 Admob.this.rewardedAd.setOnPaidEventListener(adValue -> {
-
-                    Log.d(TAG, "OnPaidEvent Reward:" + adValue.getValueMicros());
-
                     ITGLogEventManager.logPaidAdImpression(context,
                             adValue,
                             rewardedAd.getAdUnitId(), Admob.this.rewardedAd.getResponseInfo().getMediationAdapterClassName()
                             , AdType.REWARDED);
-
                     if (tokenAdjust != null) {
                         ITGLogEventManager.logPaidAdjustWithToken(adValue, rewardedAd.getAdUnitId(), tokenAdjust);
                     }
@@ -2340,21 +1728,11 @@ public class Admob {
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                 super.onAdFailedToLoad(loadAdError);
-                Log.e(TAG, "RewardedAd onAdFailedToLoad: " + loadAdError.getMessage());
             }
         });
     }
 
-    /**
-     * Load ad Reward
-     *
-     * @param context
-     * @param id
-     */
-    public void initRewardAds(Context context, String id, AdCallback callback, String tokenAdjust) {
-        if (Arrays.asList(context.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(context, REWARD_ADS, id);
-        }
+    public void initRewardAds(Context context, String id, AdCallback callback) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             return;
         }
@@ -2368,14 +1746,11 @@ public class Admob {
                 callback.onRewardAdLoaded(rewardedAd);
                 Admob.this.rewardedAd = rewardedAd;
                 Admob.this.rewardedAd.setOnPaidEventListener(adValue -> {
-                    Log.d(TAG, "OnPaidEvent Reward:" + adValue.getValueMicros());
-
                     ITGLogEventManager.logPaidAdImpression(context,
                             adValue,
                             rewardedAd.getAdUnitId(),
                             Admob.this.rewardedAd.getResponseInfo().getMediationAdapterClassName()
                             , AdType.REWARDED);
-
                     if (tokenAdjust != null) {
                         ITGLogEventManager.logPaidAdjustWithToken(adValue, rewardedAd.getAdUnitId(), tokenAdjust);
                     }
@@ -2387,21 +1762,11 @@ public class Admob {
             public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                 callback.onAdFailedToLoad(loadAdError);
                 Admob.this.rewardedAd = null;
-                Log.e(TAG, "RewardedAd onAdFailedToLoad: " + loadAdError.getMessage());
             }
         });
     }
 
-    /**
-     * Load ad Reward Interstitial
-     *
-     * @param context
-     * @param id
-     */
-    public void getRewardInterstitial(Context context, String id, AdCallback callback, String tokenAdjust) {
-        if (Arrays.asList(context.getResources().getStringArray(R.array.list_id_test)).contains(id)) {
-            showTestIdAlert(context, REWARD_ADS, id);
-        }
+    public void getRewardInterstitial(Context context, String id, AdCallback callback) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             return;
         }
@@ -2413,15 +1778,12 @@ public class Admob {
             @Override
             public void onAdLoaded(@NonNull RewardedInterstitialAd rewardedAd) {
                 callback.onRewardAdLoaded(rewardedAd);
-                Log.i(TAG, "RewardInterstitial onAdLoaded ");
                 rewardedAd.setOnPaidEventListener(adValue -> {
-                    Log.d(TAG, "OnPaidEvent Reward:" + adValue.getValueMicros());
                     ITGLogEventManager.logPaidAdImpression(context,
                             adValue,
                             rewardedAd.getAdUnitId(),
                             rewardedAd.getResponseInfo().getMediationAdapterClassName()
                             , AdType.REWARDED);
-
                     if (tokenAdjust != null) {
                         ITGLogEventManager.logPaidAdjustWithToken(adValue, rewardedAd.getAdUnitId(), tokenAdjust);
                     }
@@ -2431,7 +1793,6 @@ public class Admob {
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                 callback.onAdFailedToLoad(loadAdError);
-                Log.e(TAG, "RewardInterstitial onAdFailedToLoad: " + loadAdError.getMessage());
             }
         });
     }
@@ -2441,19 +1802,13 @@ public class Admob {
         return rewardedAd;
     }
 
-    /**
-     * Show Reward and callback
-     *
-     * @param context
-     * @param adCallback
-     */
-    public void showRewardAds(final Activity context, final RewardCallback adCallback, String tokenAdjust) {
+    public void showRewardAds(final Activity context, final RewardCallback adCallback) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             adCallback.onUserEarnedReward(null);
             return;
         }
         if (rewardedAd == null) {
-            initRewardAds(context, nativeId, tokenAdjust);
+            initRewardAds(context, nativeId);
 
             adCallback.onRewardedAdFailedToShow(0);
             return;
@@ -2503,20 +1858,13 @@ public class Admob {
         }
     }
 
-    /**
-     * Show Reward Interstitial and callback
-     *
-     * @param activity
-     * @param rewardedInterstitialAd
-     * @param adCallback
-     */
-    public void showRewardInterstitial(final Activity activity, RewardedInterstitialAd rewardedInterstitialAd, final RewardCallback adCallback, String tokenAdjust) {
+    public void showRewardInterstitial(final Activity activity, RewardedInterstitialAd rewardedInterstitialAd, final RewardCallback adCallback) {
         if (AppPurchase.getInstance().isPurchased(activity)) {
             adCallback.onUserEarnedReward(null);
             return;
         }
         if (rewardedInterstitialAd == null) {
-            initRewardAds(activity, nativeId, tokenAdjust);
+            initRewardAds(activity, nativeId);
 
             adCallback.onRewardedAdFailedToShow(0);
             return;
@@ -2565,20 +1913,13 @@ public class Admob {
         }
     }
 
-
-    /**
-     * Show quảng cáo reward và nhận kết quả trả về
-     *
-     * @param context
-     * @param adCallback
-     */
-    public void showRewardAds(final Activity context, RewardedAd rewardedAd, final RewardCallback adCallback, String tokenAdjust) {
+    public void showRewardAds(final Activity context, RewardedAd rewardedAd, final RewardCallback adCallback) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             adCallback.onUserEarnedReward(null);
             return;
         }
         if (rewardedAd == null) {
-            initRewardAds(context, nativeId, tokenAdjust);
+            initRewardAds(context, nativeId);
 
             adCallback.onRewardedAdFailedToShow(0);
             return;
@@ -2607,7 +1948,7 @@ public class Admob {
                     super.onAdShowedFullScreenContent();
 
                     AppOpenManager.getInstance().setInterstitialShowing(true);
-                    initRewardAds(context, nativeId, tokenAdjust);
+                    initRewardAds(context, nativeId);
                 }
 
                 public void onAdClicked() {
@@ -2633,28 +1974,6 @@ public class Admob {
     }
 
 
-    public AdmobRecyclerAdapter getNativeRepeatAdapter(Activity activity, String id, int layoutCustomNative, int layoutAdPlaceHolder, RecyclerView.Adapter originalAdapter,
-                                                       ITGAdPlacer.Listener listener, int repeatingInterval) {
-        ITGAdPlacerSettings settings = new ITGAdPlacerSettings(layoutCustomNative, layoutAdPlaceHolder);
-        settings.setAdUnitId(id);
-        settings.setListener(listener);
-        settings.setRepeatingInterval(repeatingInterval);
-        AdmobRecyclerAdapter adAdapter = new AdmobRecyclerAdapter(settings, originalAdapter, activity);
-        return adAdapter;
-    }
-
-    public AdmobRecyclerAdapter getNativeFixedPositionAdapter(Activity activity, String id, int layoutCustomNative, int layoutAdPlaceHolder, RecyclerView.Adapter originalAdapter,
-                                                              ITGAdPlacer.Listener listener, int position) {
-
-        ITGAdPlacerSettings settings = new ITGAdPlacerSettings(layoutCustomNative, layoutAdPlaceHolder);
-        settings.setAdUnitId(id);
-        settings.setListener(listener);
-        settings.setFixedPosition(position);
-        AdmobRecyclerAdapter adAdapter = new AdmobRecyclerAdapter(settings, originalAdapter, activity);
-        return adAdapter;
-    }
-
-
     @SuppressLint("HardwareIds")
     public String getDeviceId(Activity activity) {
         String android_id = Settings.Secure.getString(activity.getContentResolver(),
@@ -2665,7 +1984,7 @@ public class Admob {
     private String md5(final String s) {
         try {
             // Create MD5 Hash
-            MessageDigest digest = java.security.MessageDigest
+            MessageDigest digest = MessageDigest
                     .getInstance("MD5");
             digest.update(s.getBytes());
             byte messageDigest[] = digest.digest();
@@ -2681,49 +2000,9 @@ public class Admob {
             return hexString.toString();
 
         } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
         }
         return "";
-    }
-
-    private void showTestIdAlert(Context context, int typeAds, String id) {
-        String content = "";
-        switch (typeAds) {
-            case BANNER_ADS:
-                content = "Banner Ads: ";
-                break;
-            case INTERS_ADS:
-                content = "Interstitial Ads: ";
-                break;
-            case REWARD_ADS:
-                content = "Rewarded Ads: ";
-                break;
-            case NATIVE_ADS:
-                content = "Native Ads: ";
-                break;
-        }
-        content += id;
-        Notification notification = new NotificationCompat.Builder(context, "warning_ads")
-                .setContentTitle("Found test ad id")
-                .setContentText(content)
-                .setSmallIcon(R.drawable.ic_warning)
-                .build();
-
-        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-        notification.flags |= Notification.FLAG_AUTO_CANCEL;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel("warning_ads",
-                    "Warning Ads",
-                    NotificationManager.IMPORTANCE_LOW);
-            notificationManager.createNotificationChannel(channel);
-        }
-        notificationManager.notify(typeAds, notification);
-
-        Log.e(TAG, "Found test ad id on debug : " + AppUtil.VARIANT_DEV);
-
-        if (!AppUtil.VARIANT_DEV) {
-            Log.e(TAG, "Found test ad id on environment production. use test id only for develop environment ");
-            throw new RuntimeException("Found test ad id on environment production. Id found: " + id);
-        }
     }
 
     public final static int SPLASH_ADS = 0;

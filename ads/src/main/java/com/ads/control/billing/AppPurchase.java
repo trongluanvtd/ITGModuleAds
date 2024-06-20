@@ -70,13 +70,8 @@ public class AppPurchase {
     private boolean isAvailable;
     private boolean isListGot;
     private boolean isConsumePurchase = false;
-
-    private int countReconnectBilling = 0;
-    private int countMaxReconnectBilling = 4;
-    //tracking purchase adjust
     private String idPurchaseCurrent = "";
     private int typeIap;
-    // status verify purchase INAP & SUBS
     private boolean verifyFinish = false;
 
     private boolean isVerifyINAP = false;
@@ -274,7 +269,6 @@ public class AppPurchase {
             String> listINAPId, List<String> listSubsId) {
 
         if (AppUtil.VARIANT_DEV) {
-            // auto add purchase test when dev
             listINAPId.add(PRODUCT_ID_TEST);
         }
         this.listSubscriptionId = listIdToListProduct(listSubsId, BillingClient.ProductType.SUBS);
@@ -332,7 +326,6 @@ public class AppPurchase {
         }
     }
 
-    // kiểm tra trạng thái purchase
     public void verifyPurchased(boolean isCallback) {
         Log.d(TAG, "isPurchased : " + listSubscriptionId.size());
         verifyFinish = false;
@@ -343,7 +336,6 @@ public class AppPurchase {
                         public void onQueryPurchasesResponse(
                                 BillingResult billingResult,
                                 List<Purchase> list) {
-                            Log.d(TAG, "verifyPurchased INAPP  code:" + billingResult.getResponseCode() + " ===   size:" + list.size());
                             if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK && list != null) {
                                 for (Purchase purchase : list) {
                                     for (QueryProductDetailsParams.Product id : listINAPId) {
@@ -375,18 +367,6 @@ public class AppPurchase {
                                     verifyFinish = true;
                                 }
                             }
-                            /*if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED && !verifyFinish) {
-                                Log.e(TAG, "onQueryPurchasesResponse INAPP: SERVICE_DISCONNECTED  === count reconnect:" + countReconnectBilling);
-                                verifyFinish = true;
-                                if (countReconnectBilling >= countMaxReconnectBilling) {
-                                    billingListener.onInitBillingFinished(billingResult.getResponseCode());
-                                    return;
-                                }
-
-                                billingClient.startConnection(purchaseClientStateListener);
-                                countReconnectBilling++;
-                                return;
-                            }*/
                         }
                     }
             );
@@ -399,7 +379,6 @@ public class AppPurchase {
                         public void onQueryPurchasesResponse(
                                 BillingResult billingResult,
                                 List<Purchase> list) {
-                            Log.d(TAG, "verifyPurchased SUBS  code:" + billingResult.getResponseCode() + " ===   size:" + list.size());
                             if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK && list != null) {
                                 for (Purchase purchase : list) {
                                     for (QueryProductDetailsParams.Product id : listSubscriptionId) {
@@ -411,7 +390,6 @@ public class AppPurchase {
                                                     purchase.isAutoRenewing()
                                             );
                                             addOrUpdateOwnerIdSub(purchaseResult, id.zza());
-                                            Log.d(TAG, "verifyPurchased SUBS: true");
                                             isPurchase = true;
                                         }
                                     }
@@ -429,7 +407,6 @@ public class AppPurchase {
                             } else {
                                 isVerifySUBS = true;
                                 if (isVerifyINAP) {
-                                    // chưa mua subs và IAP
                                     if (billingListener != null && isCallback) {
                                         billingListener.onInitBillingFinished(billingResult.getResponseCode());
                                         if (handlerTimeout != null && rdTimeout != null) {
@@ -439,17 +416,6 @@ public class AppPurchase {
                                     }
                                 }
                             }
-                            /*if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED && !verifyFinish) {
-                                Log.e(TAG, "onQueryPurchasesResponse SUBS: SERVICE_DISCONNECTED  === count reconnect:" + countReconnectBilling);
-                                verifyFinish = true;
-                                if (countReconnectBilling >= countMaxReconnectBilling) {
-                                    billingListener.onInitBillingFinished(billingResult.getResponseCode());
-                                    return;
-                                }
-                                billingClient.startConnection(purchaseClientStateListener);
-                                countReconnectBilling++;
-                                return;
-                            }*/
                         }
                     }
             );
@@ -512,22 +478,9 @@ public class AppPurchase {
         }
     }
 
-/*    private String logResultBilling(Purchase.PurchasesResult result) {
-        if (result == null || result.getPurchasesList() == null)
-            return "null";
-        StringBuilder log = new StringBuilder();
-        for (Purchase purchase : result.getPurchasesList()) {
-            for (String s : purchase.getSkus()) {
-                log.append(s).append(",");
-            }
-        }
-        return log.toString();
-    }*/
-
     @Deprecated
     public void purchase(Activity activity) {
         if (productId == null) {
-            Log.e(TAG, "Purchase false:productId null");
             Toast.makeText(activity, "Product id must not be empty!", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -544,14 +497,11 @@ public class AppPurchase {
         }
         ProductDetails productDetails = skuDetailsINAPMap.get(productId);
         if (AppUtil.VARIANT_DEV) {
-            // Auto using id purchase test in variant dev
             productId = PRODUCT_ID_TEST;
-            PurchaseDevBottomSheet purchaseDevBottomSheet = new PurchaseDevBottomSheet(TYPE_IAP.PURCHASE,productDetails,activity,purchaseListener);
+            PurchaseDevBottomSheet purchaseDevBottomSheet = new PurchaseDevBottomSheet(TYPE_IAP.PURCHASE, productDetails, activity, purchaseListener);
             purchaseDevBottomSheet.show();
             return "";
         }
-
-
 
         if (productDetails == null) {
             return "Product ID invalid";
@@ -617,34 +567,22 @@ public class AppPurchase {
 
             case BillingClient.BillingResponseCode.OK:
                 return "Subscribed Successfully";
-            //}
-
         }
         return "";
     }
 
     public String subscribe(Activity activity, String SubsId) {
-
-        if (skuListSubsFromStore == null) {
-            if (purchaseListener != null)
-                purchaseListener.displayErrorMessage("Billing error init");
-            return "";
-        }
-
-        ProductDetails productDetails = skuDetailsSubsMap.get(SubsId);
         if (AppUtil.VARIANT_DEV) {
-            // sử dụng ID Purchase test
-            productId = PRODUCT_ID_TEST;
-            PurchaseDevBottomSheet purchaseDevBottomSheet =
-                    new PurchaseDevBottomSheet(
-                            TYPE_IAP.SUBSCRIPTION,
-                            productDetails,
-                            activity,
-                            purchaseListener
-                    );
-            purchaseDevBottomSheet.show();
+            purchase(activity, PRODUCT_ID_TEST);
             return "Billing test";
+        } else {
+            if (skuListSubsFromStore == null) {
+                if (purchaseListener != null)
+                    purchaseListener.displayErrorMessage("Billing error init");
+                return "";
+            }
         }
+        ProductDetails productDetails = skuDetailsSubsMap.get(SubsId);
         if (productDetails == null) {
             return "Product ID invalid";
         }
@@ -708,9 +646,6 @@ public class AppPurchase {
 
             case BillingClient.BillingResponseCode.OK:
                 return "Subscribed Successfully";
-
-            //}
-
         }
         return "";
     }
@@ -776,8 +711,6 @@ public class AppPurchase {
     }
 
     private void handlePurchase(Purchase purchase) {
-
-        //tracking adjust
         double price = getPriceWithoutCurrency(idPurchaseCurrent, typeIap);
         String currency = getCurrency(idPurchaseCurrent, typeIap);
         ITGLogEventManager.onTrackRevenuePurchase((float) price, currency, idPurchaseCurrent, typeIap);
@@ -796,7 +729,6 @@ public class AppPurchase {
                 @Override
                 public void onConsumeResponse(BillingResult billingResult, String purchaseToken) {
                     Log.d(TAG, "onConsumeResponse: " + billingResult.getDebugMessage());
-
                 }
             };
 
@@ -930,13 +862,6 @@ public class AppPurchase {
             return pricingPhaseList.get(pricingPhaseList.size() - 1).getPriceAmountMicros();
         }
     }
-//
-//    public String getOldPrice() {
-//        SkuDetails skuDetails = bp.getPurchaseListingDetails(productId);
-//        if (skuDetails == null)
-//            return "";
-//        return formatCurrency(skuDetails.priceValue / discount, skuDetails.currency);
-//    }
 
     /**
      * Format currency and price by country

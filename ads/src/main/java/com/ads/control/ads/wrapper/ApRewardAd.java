@@ -69,10 +69,10 @@ public class ApRewardAd extends ApAdBase {
 
     @Override
     public boolean isReady() {
-        return admobReward != null ||admobRewardInter != null || maxReward != null && maxReward.isReady();
+        return admobReward != null || admobRewardInter != null || maxReward != null && maxReward.isReady();
     }
 
-    public boolean isRewardInterstitial(){
+    public boolean isRewardInterstitial() {
         return admobRewardInter != null;
     }
 }

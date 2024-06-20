@@ -1,97 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:background="#FDA6A6"
-    tools:context=".activity.MainActivity">
+    android:layout_height="match_parent">
 
-    <com.ads.control.ads.nativeAds.ITGNativeAdView
-        android:id="@+id/itgNativeAds"
+    <FrameLayout
+        android:id="@+id/fr_ads"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/_150sdp"
-        android:background="@drawable/bg_card_ads"
-        app:layoutCustomNativeAd="@layout/custom_native_admod_medium_rate"
-        app:layoutLoading="@layout/loading_native_medium"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <include layout="@layout/shimmer_native_large" />
+    </FrameLayout>
+
+    <Button
+        android:id="@+id/btnLoad"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Load Inter"
+        app:layout_constraintBottom_toTopOf="@+id/btnShow"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/btnShow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Show Inter"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-<!--    <include
-
-        android:id="@+id/include3"
-        layout="@layout/layout_native_medium" />-->
-
-    <androidx.appcompat.widget.LinearLayoutCompat
-        android:id="@+id/linearLayoutCompat"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:gravity="center"
-        android:orientation="vertical"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/itgNativeAds">
-
-
-        <Button
-            android:id="@+id/btShowAds"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:text="Click 3 lần hiện full" />
-
-
-        <Button
-            android:id="@+id/btForceShowAds"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/btShowAds"
-            android:layout_centerHorizontal="true"
-            android:text="Click 1 lần hiện full" />
-
-        <Button
-            android:id="@+id/btnShowReward"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/btForceShowAds"
-            android:layout_centerHorizontal="true"
-            android:text="Show reward" />
-
-
-        <Button
-
-            android:id="@+id/btIap"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/btnShowReward"
-            android:layout_centerHorizontal="true"
-            android:text="IAP test" />
-
-        <Button
-
-            android:id="@+id/btnAdjustEvent"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/btIap"
-            android:layout_centerHorizontal="true"
-            android:onClick="onTrackSimpleEventClick"
-            android:text="Event sample adjust" />
-
-        <Button
-
-            android:id="@+id/btnAdjustTrack"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/btnAdjustEvent"
-            android:layout_centerHorizontal="true"
-            android:onClick="onTrackRevenueEventClick"
-            android:text="Track Revenue adjust" />
-    </androidx.appcompat.widget.LinearLayoutCompat>
-
-    <com.ads.control.ads.bannerAds.ITGBannerAdView
-        android:id="@+id/bannerView"
+    <include
+        layout="@layout/layout_banner_control"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
         app:layout_constraintBottom_toBottomOf="parent" />
+
+    <Button
+        android:id="@+id/btnIap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="IAP"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btnShow" />
+
+    <Button
+        android:id="@+id/btnLoadReward"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Load Reward"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btnIap" />
+
+    <Button
+        android:id="@+id/btnShowReward"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Show Reward"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btnLoadReward" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

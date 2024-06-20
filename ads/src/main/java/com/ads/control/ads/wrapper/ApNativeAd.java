@@ -61,8 +61,8 @@ public class ApNativeAd extends ApAdBase {
         this.nativeView = nativeView;
     }
 
-    public String toString(){
-        return "Status:"+ status + " == nativeView:"+nativeView + " == admobNativeAd:"+admobNativeAd;
+    public String toString() {
+        return "Status:" + status + " == nativeView:" + nativeView + " == admobNativeAd:" + admobNativeAd;
     }
 
 }

@@ -11,8 +11,6 @@ import com.applovin.mediation.MaxAd;
 import com.google.android.gms.ads.AdValue;
 
 public class ITGAdjust {
-
-
     public static boolean enableAdjust = false;
     private static String eventNamePurchase = "";
 
@@ -32,7 +30,6 @@ public class ITGAdjust {
 
     public static void onTrackEvent(String eventName, String id) {
         AdjustEvent event = new AdjustEvent(eventName);
-        // Assign custom identifier to event which will be reported in success/failure callbacks.
         event.setCallbackId(id);
         Adjust.trackEvent(event);
     }

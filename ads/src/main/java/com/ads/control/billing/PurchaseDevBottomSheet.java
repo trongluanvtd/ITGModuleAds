@@ -8,8 +8,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 
 import com.ads.control.R;
-import com.ads.control.funtion.BillingListener;
 import com.ads.control.funtion.PurchaseListener;
+import com.ads.control.util.AppUtil;
 import com.android.billingclient.api.ProductDetails;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
@@ -42,7 +42,19 @@ public class PurchaseDevBottomSheet extends BottomSheetDialog {
         txtPrice = findViewById(R.id.txtPrice);
         txtContinuePurchase = findViewById(R.id.txtContinuePurchase);
         if (productDetails == null) {
-
+            if (AppUtil.VARIANT_DEV) {
+                txtContinuePurchase.setOnClickListener(v -> {
+                    AppPurchase.getInstance().setPurchase(true);
+                    if (purchaseListener != null) {
+                        purchaseListener.onProductPurchased("android.test.purchased", "{\"productId\":\"android.test.purchased\",\"type\":\"inapp\",\"title\":\"Tiêu đề mẫu\",\"description\":\"Mô tả mẫu về sản phẩm: android.test.purchased.\",\"skuDetailsToken\":\"AEuhp4Izz50wTvd7YM9wWjPLp8hZY7jRPhBEcM9GAbTYSdUM_v2QX85e8UYklstgqaRC\",\"oneTimePurchaseOfferDetails\":{\"priceAmountMicros\":23207002450,\"priceCurrencyCode\":\"VND\",\"formattedPrice\":\"23.207 ₫\"}}', parsedJson={\"productId\":\"android.test.purchased\",\"type\":\"inapp\",\"title\":\"Tiêu đề mẫu\",\"description\":\"Mô tả mẫu về sản phẩm: android.test.purchased.\",\"skuDetailsToken\":\"AEuhp4Izz50wTvd7YM9wWjPLp8hZY7jRPhBEcM9GAbTYSdUM_v2QX85e8UYklstgqaRC\",\"oneTimePurchaseOfferDetails\":{\"priceAmountMicros\":23207002450,\"priceCurrencyCode\":\"VND\",\"formattedPrice\":\"23.207 ₫\"}}, productId='android.test.purchased', productType='inapp', title='Tiêu đề mẫu', productDetailsToken='AEuhp4Izz50wTvd7YM9wWjPLp8hZY7jRPhBEcM9GAbTYSdUM_v2QX85e8UYklstgqaRC', subscriptionOfferDetails=null}");
+                    }
+                    dismiss();
+                });
+            } else {
+                txtContinuePurchase.setOnClickListener(v -> {
+                    dismiss();
+                });
+            }
         } else {
             txtTitle.setText(productDetails.getTitle());
             txtDescription.setText(productDetails.getDescription());

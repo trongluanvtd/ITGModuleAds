@@ -11,10 +11,9 @@
 
         <ImageView
             android:id="@+id/iv_close"
-            android:layout_width="@dimen/_16sdp"
-            android:layout_height="@dimen/_16sdp"
-            android:layout_gravity="left"
-            android:layout_marginLeft="12dp"
+            android:layout_width="@dimen/_25sdp"
+            android:layout_height="@dimen/_25sdp"
+            android:layout_marginStart="12dp"
             android:layout_marginTop="20dp"
             android:src="@drawable/ic_close" />
 
@@ -25,11 +24,10 @@
             android:orientation="vertical">
 
             <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_below="@+id/iv_close"
+                android:layout_width="@dimen/_200sdp"
+                android:layout_height="@dimen/_200sdp"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_inapp" />
+                android:src="@drawable/ic_app_purchase" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -37,8 +35,8 @@
                 android:layout_gravity="center"
                 android:layout_marginTop="30dp"
                 android:text="@string/remove_ads"
-                android:textColor="#643D58"
-                android:textSize="30dp"
+                android:textColor="@color/gntBlack"
+                android:textSize="@dimen/_20sdp"
                 android:textStyle="bold" />
 
             <TextView
@@ -46,9 +44,9 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginTop="12dp"
-                android:text="@string/remove_all_anoying_ads_forever_by_just"
-                android:textColor="#643D58"
-                android:textSize="16dp" />
+                android:text="@string/remove_all_annoying_ads_forever_by_just"
+                android:textColor="@color/gntGray"
+                android:textSize="@dimen/_14sdp" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -62,7 +60,7 @@
                     android:layout_gravity="center"
                     android:text="0.0 $"
                     android:textColor="#F44336"
-                    android:textSize="30dp"
+                    android:textSize="@dimen/_25sdp"
                     android:textStyle="bold" />
 
                 <View
@@ -80,17 +78,17 @@
                     android:alpha="0.7"
                     android:text="0.0 $"
                     android:textColor="#F44336"
-                    android:textSize="24dp" />
+                    android:textSize="@dimen/_20sdp" />
             </LinearLayout>
 
 
             <TextView
-                android:id="@+id/tv_pucharse"
+                android:id="@+id/tv_purchase"
                 android:layout_width="@dimen/_150sdp"
                 android:layout_height="@dimen/_45sdp"
                 android:layout_gravity="center"
                 android:layout_marginTop="30dp"
-                android:background="@drawable/bg_purcharse"
+                android:background="@drawable/bg_purchase"
                 android:gravity="center"
                 android:text="@string/buy_now"
                 android:textAllCaps="true"

@@ -25,10 +25,9 @@ public class ITGLogEventManager {
     public static void logPaidAdImpression(Context context, AdValue adValue, String adUnitId, String mediationAdapterClassName, AdType adType) {
         logEventWithAds(context, (float) adValue.getValueMicros(), adValue.getPrecisionType(), adUnitId, mediationAdapterClassName, ITGAdConfig.PROVIDER_ADMOB);
         ITGAdjust.pushTrackEventAdmob(adValue);
-        ITGAppsflyer.getInstance().pushTrackEventAdmob(adValue, adUnitId, adType);
         // Log revenue Facebook 30/08
         float value = adValue.getValueMicros() * 1.0f / 1000000;
-        AppEventsLogger.newLogger(context).logPurchase(BigDecimal.valueOf(value), Currency.getInstance("USD"));
+        AppEventsLogger.newLogger(context).logPurchase(BigDecimal.valueOf(value), Currency.getInstance("VND"));
     }
 
     public static void logPaidAdjustWithToken(AdValue adValue, String adUnitId, String token) {
@@ -39,11 +38,21 @@ public class ITGLogEventManager {
         Adjust.trackEvent(adjustEvent);
     }
 
+    public static void logPaidAdjustWithTokenMax(MaxAd adValue, String adUnitId, String token) {
+        AdjustEvent adjustEvent = new AdjustEvent(token);
+        double value = adValue.getRevenue();
+        adjustEvent.setRevenue(value, "USD");
+        adjustEvent.setOrderId(adUnitId);
+        Adjust.trackEvent(adjustEvent);
+    }
+
     public static void logPaidAdImpression(Context context, MaxAd adValue, AdType adType) {
-//        logEventWithAds(context, (float) adValue.getRevenue(), 0, adValue.getAdUnitId(), adValue.getNetworkName(), ITGAdConfig.PROVIDER_MAX);
         logEventWithMaxAds(context, adValue);
         ITGAdjust.pushTrackEventApplovin(adValue, context);
-        ITGAppsflyer.getInstance().pushTrackEventApplovin(adValue, adType);
+
+        // Log revenue Facebook 30/05/2024
+        double value = adValue.getRevenue() * 25000;
+        AppEventsLogger.newLogger(context).logPurchase(BigDecimal.valueOf(value), Currency.getInstance("VND"));
     }
 
     private static void logEventWithMaxAds(Context context, MaxAd impressionData) {
@@ -60,32 +69,19 @@ public class ITGLogEventManager {
     }
 
     private static void logEventWithAds(Context context, float revenue, int precision, String adUnitId, String network, int mediationProvider) {
-        Log.d(TAG, String.format(
-                "Paid event of value %.0f microcents in currency USD of precision %s%n occurred for ad unit %s from ad network %s.mediation provider: %s%n",
-                revenue,
-                precision,
-                adUnitId,
-                network, mediationProvider));
-
         Bundle params = new Bundle(); // Log ad value in micros.
         params.putDouble("valuemicros", revenue);
         params.putString("currency", "USD");
-        // These values below won’t be used in ROAS recipe.
-        // But log for purposes of debugging and future reference.
         params.putInt("precision", precision);
         params.putString("adunitid", adUnitId);
         params.putString("network", network);
 
-        // log revenue this ad
         logPaidAdImpressionValue(context, revenue / 1000000.0, precision, adUnitId, network, mediationProvider);
         FirebaseAnalyticsUtil.logEventWithAds(context, params);
         FacebookEventUtils.logEventWithAds(context, params);
-        // update current tota
-        // l revenue ads
         SharePreferenceUtils.updateCurrentTotalRevenueAd(context, (float) revenue);
         logCurrentTotalRevenueAd(context, "event_current_total_revenue_ad");
 
-        // update current total revenue ads for event paid_ad_impression_value_0.01
         AppUtil.currentTotalRevenue001Ad += revenue;
         SharePreferenceUtils.updateCurrentTotalRevenue001Ad(context, AppUtil.currentTotalRevenue001Ad);
         logTotalRevenue001Ad(context);
@@ -185,7 +181,6 @@ public class ITGLogEventManager {
 
     public static void onTrackRevenuePurchase(float revenue, String currency, String idPurchase, int typeIAP) {
         ITGAdjust.onTrackRevenuePurchase(revenue, currency);
-        ITGAppsflyer.getInstance().onTrackRevenuePurchase(revenue, currency, idPurchase, typeIAP);
     }
 
     public static void pushTrackEventAdmob(AdValue adValue) {

@@ -31,12 +31,12 @@ public class ApAdError {
         this.message = message;
     }
 
-    public String getMessage(){
-        if (maxError!=null)
+    public String getMessage() {
+        if (maxError != null)
             return maxError.getMessage();
-        if (loadAdError!=null)
+        if (loadAdError != null)
             return loadAdError.getMessage();
-        if (adError!=null)
+        if (adError != null)
             return adError.getMessage();
         if (!message.isEmpty())
             return message;
