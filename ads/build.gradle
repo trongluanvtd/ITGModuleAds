@@ -46,7 +46,7 @@ dependencies {
     implementation "com.android.billingclient:billing:7.0.0"
     implementation "com.google.guava:guava:27.1-android"
 
-    implementation 'com.google.firebase:firebase-analytics:22.0.2'
+    implementation 'com.google.firebase:firebase-analytics:21.2.0'
 
     // Mediation
     implementation 'com.google.ads.mediation:facebook:6.17.0.0'
@@ -56,7 +56,7 @@ dependencies {
     implementation 'com.google.ads.mediation:mintegral:16.7.71.0'
 
     // Facebook SDK
-    implementation 'com.facebook.android:facebook-android-sdk:16.1.3'
+    implementation 'com.facebook.android:facebook-android-sdk:15.2.0'
 
     // Adjust
     implementation 'com.adjust.sdk:adjust-android:4.33.1'
