@@ -11,6 +11,7 @@ import com.ads.control.funtion.AdType;
 import com.ads.control.util.AppUtil;
 import com.ads.control.util.SharePreferenceUtils;
 import com.applovin.mediation.MaxAd;
+import com.facebook.appevents.AppEventsConstants;
 import com.facebook.appevents.AppEventsLogger;
 import com.google.android.gms.ads.AdValue;
 import com.google.firebase.analytics.FirebaseAnalytics;
@@ -26,8 +27,8 @@ public class ITGLogEventManager {
         logEventWithAds(context, (float) adValue.getValueMicros(), adValue.getPrecisionType(), adUnitId, mediationAdapterClassName, ITGAdConfig.PROVIDER_ADMOB);
         ITGAdjust.pushTrackEventAdmob(adValue);
         // Log revenue Facebook 30/08
-        float value = adValue.getValueMicros() * 1.0f / 1000000 * 25000;
-        AppEventsLogger.newLogger(context).logPurchase(BigDecimal.valueOf(value), Currency.getInstance("VND"));
+        /*float value = adValue.getValueMicros() * 1.0f / 1000000 * 25000;
+        AppEventsLogger.newLogger(context).logPurchase(BigDecimal.valueOf(value), Currency.getInstance("VND"));*/
     }
 
     public static void logPaidAdjustWithToken(AdValue adValue, String adUnitId, String token) {
@@ -181,6 +182,13 @@ public class ITGLogEventManager {
 
     public static void onTrackRevenuePurchase(float revenue, String currency, String idPurchase, int typeIAP) {
         ITGAdjust.onTrackRevenuePurchase(revenue, currency);
+    }
+
+    public static void onTrackRevenuePurchaseFacebook(float revenue, Context context, String currency) {
+        Bundle bundle = new Bundle();
+        bundle.putFloat("value", (float) (revenue / 1000000.0));
+        bundle.putString("currency", currency);
+        AppEventsLogger.newLogger(context).logEvent( AppEventsConstants.EVENT_NAME_PURCHASED, bundle);
     }
 
     public static void pushTrackEventAdmob(AdValue adValue) {

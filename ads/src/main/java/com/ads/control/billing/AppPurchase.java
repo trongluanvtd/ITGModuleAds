@@ -50,6 +50,8 @@ public class AppPurchase {
     @SuppressLint("StaticFieldLeak")
     private static AppPurchase instance;
 
+    private Application application;
+
     @SuppressLint("StaticFieldLeak")
     private String price = "1.49$";
     private String oldPrice = "2.99$";
@@ -267,7 +269,7 @@ public class AppPurchase {
 
     public void initBilling(final Application application, List<
             String> listINAPId, List<String> listSubsId) {
-
+        this.application = application;
         if (AppUtil.VARIANT_DEV) {
             listINAPId.add(PRODUCT_ID_TEST);
         }
@@ -714,6 +716,7 @@ public class AppPurchase {
         double price = getPriceWithoutCurrency(idPurchaseCurrent, typeIap);
         String currency = getCurrency(idPurchaseCurrent, typeIap);
         ITGLogEventManager.onTrackRevenuePurchase((float) price, currency, idPurchaseCurrent, typeIap);
+        ITGLogEventManager.onTrackRevenuePurchaseFacebook((float) price, application, currency);
 
         if (purchaseListener != null) {
             isPurchase = true;

@@ -7,6 +7,7 @@ import com.ads.control.application.AdsMultiDexApplication;
 import com.ads.control.billing.AppPurchase;
 import com.ads.control.config.AdjustConfig;
 import com.ads.control.config.ITGAdConfig;
+import com.ads.control.event.ITGAdjust;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,8 +28,6 @@ public class App extends AdsMultiDexApplication {
         mITGAdConfig.setAdjustConfig(adjustConfig);
         mITGAdConfig.setFacebookClientToken(getString(R.string.facebook_client_token));
         mITGAdConfig.setAdjustTokenTiktok(getString(R.string.tiktok_token));
-
-        mITGAdConfig.setIdAdResume("");
 
         ITGAd.getInstance().init(this, mITGAdConfig);
         Admob.getInstance().setDisableAdResumeWhenClickAds(true);

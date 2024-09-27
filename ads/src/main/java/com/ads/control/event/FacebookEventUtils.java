@@ -29,4 +29,5 @@ public class FacebookEventUtils {
     public static void logTotalRevenue001Ad(Context context, Bundle bundle) {
         AppEventsLogger.newLogger(context).logEvent("paid_ad_impression_value_001", bundle);
     }
+
 }
