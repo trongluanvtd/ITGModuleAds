@@ -92,4 +92,32 @@ public class AdCallback {
     public void onInterstitialShow() {
 
     }
+
+    public void onAdSplashHigh1Ready() {
+
+    }
+
+    public void onAdSplashHigh2Ready() {
+
+    }
+
+    public void onAdSplashHigh3Ready() {
+
+    }
+
+    public void onAdSplashNormalReady() {
+
+    }
+
+    public void onAdHighFailedToLoad() {
+
+    }
+
+    public void onAdPriorityFailedToLoad(@Nullable AdError adError) {
+
+    }
+
+    public void onAdPriorityFailedToShow(@Nullable AdError adError) {
+
+    }
 }
