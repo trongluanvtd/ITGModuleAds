@@ -19,10 +19,10 @@ public class SplashActivity extends AppCompatActivity {
         setContentView(R.layout.activity_splash);
 
         AppOpenManager.getInstance().loadAndShowOpenSplash4SameTime(this,
+                "ca-app-pub-3940256099942544/9257395921",
                 "ca-app-pub-3940256099942544/92573959211",
                 "ca-app-pub-3940256099942544/9257395921",
-                "ca-app-pub-3940256099942544/9257395921",
-                "ca-app-pub-3940256099942544/9257395921",
+                "ca-app-pub-3940256099942544/92573959211",
                 30000, new AdCallback() {
                     @Override
                     public void onAdSplashHigh1Ready() {

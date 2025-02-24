@@ -1653,7 +1653,6 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
     private boolean isOpenHigh2Loaded = false;
     private boolean isOpenHigh3Loaded = false;
     private boolean isOpenNormalLoaded = false;
-    private boolean hasAds = false;
 
     public void loadAndShowOpenSplash4SameTime(Context context, String idOpenHigh1, String idOpenHigh2, String idOpenHigh3, String idOpenNormal, long timeOut, AdCallback adCallback) {
         isOpenHigh1Failed = false;
@@ -1685,20 +1684,23 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                 @Override
                 public void onNextAction() {
                     super.onNextAction();
-                    if (isOpenHigh2Loaded && mOpenSplashHigh2 != null) {
-                        adCallback.onAdSplashHigh2Ready();
-                        Log.d("LuanDev", "onAdSplashReady: 2");
-                    } else if (isOpenHigh3Loaded && mOpenSplashHigh3 != null) {
-                        adCallback.onAdSplashHigh3Ready();
-                        Log.d("LuanDev", "onAdSplashReady: 4");
-                    } else if (isOpenHigh3Loaded && isOpenNormalLoaded) {
-                        if (!hasAds) {
+                    if (!isOpenHigh1Failed) {
+                        if (isOpenHigh2Loaded && mOpenSplashHigh2 != null) {
+                            adCallback.onAdSplashHigh2Ready();
+                            isOpenHigh1Failed = true;
+                            Log.d("LuanDev", "onAdSplashReady: 2");
+                        } else if (isOpenHigh3Loaded && mOpenSplashHigh3 != null) {
+                            adCallback.onAdSplashHigh3Ready();
+                            isOpenHigh1Failed = true;
+                            Log.d("LuanDev", "onAdSplashReady: 4");
+                        } else if (isOpenHigh3Loaded && isOpenNormalLoaded) {
                             adCallback.onAdSplashNormalReady();
                             Log.d("LuanDev", "onAdSplashReady: 7");
+                            isOpenHigh1Failed = true;
+                        } else {
+                            // waiting for ads loaded
+                            isOpenHigh1Failed = true;
                         }
-                    } else {
-                        // waiting for ads loaded
-                        isOpenHigh1Failed = true;
                     }
                 }
             });
@@ -1707,7 +1709,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                 @Override
                 public void onAdSplashReady() {
                     super.onAdSplashReady();
-                    if (isOpenHigh1Failed && !isOpenHigh2Loaded) {
+                    if (isOpenHigh1Failed) {
                         adCallback.onAdSplashHigh2Ready();
                         Log.d("LuanDev", "onAdSplashReady: 3");
                     } else {
@@ -1718,12 +1720,14 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                 @Override
                 public void onNextAction() {
                     super.onNextAction();
-                    if (isOpenHigh1Failed) {
+                    if (isOpenHigh1Failed && !isOpenHigh2Loaded) {
                         if (isOpenHigh3Loaded && mOpenSplashHigh3 != null) {
                             adCallback.onAdSplashHigh3Ready();
+                            isOpenHigh2Loaded = true;
                             Log.d("LuanDev", "onAdSplashReady: 5");
                         } else if (isOpenNormalLoaded && mOpenSplashNormal != null) {
                             adCallback.onAdSplashNormalReady();
+                            isOpenHigh2Loaded = true;
                             Log.d("LuanDev", "onAdSplashReady: 8");
                         } else {
                             isOpenHigh2Loaded = true;
@@ -1749,9 +1753,10 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                 @Override
                 public void onNextAction() {
                     super.onNextAction();
-                    if (isOpenHigh1Failed && isOpenHigh2Loaded) {
+                    if (isOpenHigh1Failed && isOpenHigh2Loaded && !isOpenHigh3Loaded) {
                         if (isOpenNormalLoaded && mOpenSplashNormal != null) {
                             adCallback.onAdSplashNormalReady();
+                            isOpenHigh3Loaded = true;
                             Log.d("LuanDev", "onAdSplashReady: 9");
                         } else {
                             isOpenHigh3Loaded = true;
@@ -1778,8 +1783,11 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                 public void onNextAction() {
                     super.onNextAction();
                     if (isOpenHigh1Failed && isOpenHigh2Loaded && isOpenHigh3Loaded) {
-                        hasAds = true;
                         adCallback.onAdSplashNormalReady();
+                        isOpenHigh1Failed = true;
+                        isOpenHigh2Loaded = true;
+                        isOpenHigh3Loaded = true;
+                        isOpenNormalLoaded = true;
                         Log.d("LuanDev", "onAdSplashReady: 11");
                     } else {
                         isOpenNormalLoaded = true;
