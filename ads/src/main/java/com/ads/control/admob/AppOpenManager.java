@@ -16,6 +16,7 @@ import android.os.Handler;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -1647,5 +1648,676 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         return cm.getActiveNetworkInfo() != null && cm.getActiveNetworkInfo().isConnected();
     }
+
+    private boolean isOpenHigh1Failed = false;
+    private boolean isOpenHigh2Loaded = false;
+    private boolean isOpenHigh3Loaded = false;
+    private boolean isOpenNormalLoaded = false;
+    private boolean hasAds = false;
+
+    public void loadAndShowOpenSplash4SameTime(Context context, String idOpenHigh1, String idOpenHigh2, String idOpenHigh3, String idOpenNormal, long timeOut, AdCallback adCallback) {
+        isOpenHigh1Failed = false;
+        isOpenHigh2Loaded = false;
+        isOpenHigh3Loaded = false;
+        isOpenNormalLoaded = false;
+
+        if (!this.isNetworkConnected(context)) {
+            (new Handler()).postDelayed(() -> {
+                adCallback.onAdFailedToLoad(null);
+                adCallback.onNextAction();
+            }, 3000L);
+        } else {
+            // Load Open High 1
+            loadOpenHigh1(context, idOpenHigh1, timeOut, new AdCallback() {
+                @Override
+                public void onAdSplashReady() {
+                    super.onAdSplashReady();
+                    Log.d("LuanDev", "onAdSplashReady: 1");
+                    adCallback.onAdSplashHigh1Ready();
+                }
+
+                @Override
+                public void onAdFailedToLoad(@Nullable LoadAdError i) {
+                    super.onAdFailedToLoad(i);
+                    adCallback.onAdPriorityFailedToLoad(i);
+                }
+
+                @Override
+                public void onNextAction() {
+                    super.onNextAction();
+                    if (isOpenHigh2Loaded && mOpenSplashHigh2 != null) {
+                        adCallback.onAdSplashHigh2Ready();
+                        Log.d("LuanDev", "onAdSplashReady: 2");
+                    } else if (isOpenHigh3Loaded && mOpenSplashHigh3 != null) {
+                        adCallback.onAdSplashHigh3Ready();
+                        Log.d("LuanDev", "onAdSplashReady: 4");
+                    } else if (isOpenHigh3Loaded && isOpenNormalLoaded) {
+                        if (!hasAds) {
+                            adCallback.onAdSplashNormalReady();
+                            Log.d("LuanDev", "onAdSplashReady: 7");
+                        }
+                    } else {
+                        // waiting for ads loaded
+                        isOpenHigh1Failed = true;
+                    }
+                }
+            });
+
+            loadOpenHigh2(context, idOpenHigh2, timeOut, new AdCallback() {
+                @Override
+                public void onAdSplashReady() {
+                    super.onAdSplashReady();
+                    if (isOpenHigh1Failed && !isOpenHigh2Loaded) {
+                        adCallback.onAdSplashHigh2Ready();
+                        Log.d("LuanDev", "onAdSplashReady: 3");
+                    } else {
+                        isOpenHigh2Loaded = true;
+                    }
+                }
+
+                @Override
+                public void onNextAction() {
+                    super.onNextAction();
+                    if (isOpenHigh1Failed) {
+                        if (isOpenHigh3Loaded && mOpenSplashHigh3 != null) {
+                            adCallback.onAdSplashHigh3Ready();
+                            Log.d("LuanDev", "onAdSplashReady: 5");
+                        } else if (isOpenNormalLoaded && mOpenSplashNormal != null) {
+                            adCallback.onAdSplashNormalReady();
+                            Log.d("LuanDev", "onAdSplashReady: 8");
+                        } else {
+                            isOpenHigh2Loaded = true;
+                        }
+                    } else {
+                        isOpenHigh2Loaded = true;
+                    }
+                }
+            });
+
+            loadOpenHigh3(context, idOpenHigh3, timeOut, new AdCallback() {
+                @Override
+                public void onAdSplashReady() {
+                    super.onAdSplashReady();
+                    if (isOpenHigh1Failed && isOpenHigh2Loaded) {
+                        adCallback.onAdSplashHigh3Ready();
+                        Log.d("LuanDev", "onAdSplashReady: 6");
+                    } else {
+                        isOpenHigh3Loaded = true;
+                    }
+                }
+
+                @Override
+                public void onNextAction() {
+                    super.onNextAction();
+                    if (isOpenHigh1Failed && isOpenHigh2Loaded) {
+                        if (isOpenNormalLoaded && mOpenSplashNormal != null) {
+                            adCallback.onAdSplashNormalReady();
+                            Log.d("LuanDev", "onAdSplashReady: 9");
+                        } else {
+                            isOpenHigh3Loaded = true;
+                        }
+                    } else {
+                        isOpenHigh3Loaded = true;
+                    }
+                }
+            });
+
+            loadOpenNormal(context, idOpenNormal, timeOut, new AdCallback() {
+                @Override
+                public void onAdSplashReady() {
+                    super.onAdSplashReady();
+                    if (isOpenHigh1Failed && isOpenHigh2Loaded && isOpenHigh3Loaded) {
+                        adCallback.onAdSplashNormalReady();
+                        Log.d("LuanDev", "onAdSplashReady: 10");
+                    } else {
+                        isOpenNormalLoaded = true;
+                    }
+                }
+
+                @Override
+                public void onNextAction() {
+                    super.onNextAction();
+                    if (isOpenHigh1Failed && isOpenHigh2Loaded && isOpenHigh3Loaded) {
+                        hasAds = true;
+                        adCallback.onAdSplashNormalReady();
+                        Log.d("LuanDev", "onAdSplashReady: 11");
+                    } else {
+                        isOpenNormalLoaded = true;
+                    }
+                }
+            });
+        }
+    }
+
+    private boolean isFailedPriority = false;
+
+    public void showOpenSplash4SameTime(AppCompatActivity activity, AdCallback adListener) {
+        isFailedPriority = false;
+        if (mOpenSplashHigh1 != null) {
+            onShowSplashHigh1(activity, new AdCallback() {
+                @Override
+                public void onAdFailedToShow(@Nullable AdError i) {
+                    super.onAdFailedToShow(i);
+                    isFailedPriority = true;
+                    onShowSplashHigh2(activity, new AdCallback() {
+                        @Override
+                        public void onAdFailedToShow(@Nullable AdError i) {
+                            super.onAdFailedToShow(i);
+                            isFailedPriority = true;
+                            onShowSplashHigh3(activity, new AdCallback() {
+                                @Override
+                                public void onAdFailedToShow(@Nullable AdError i) {
+                                    super.onAdFailedToShow(i);
+                                    isFailedPriority = true;
+                                    onShowSplashNormal(activity, new AdCallback() {
+                                        @Override
+                                        public void onAdFailedToShow(@Nullable AdError i) {
+                                            super.onAdFailedToShow(i);
+                                            adListener.onAdFailedToShow(i);
+                                        }
+
+                                        @Override
+                                        public void onNextAction() {
+                                            super.onNextAction();
+                                            adListener.onNextAction();
+                                            Log.d("LuanDev", "onAdFailedToShow: 41");
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onNextAction() {
+                                    super.onNextAction();
+                                    if (!isFailedPriority) {
+                                        Log.d("LuanDev", "onAdFailedToShow: 31");
+                                        adListener.onNextAction();
+                                    }
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onNextAction() {
+                            super.onNextAction();
+                            if (!isFailedPriority) {
+                                Log.d("LuanDev", "onAdFailedToShow: 21");
+                                adListener.onNextAction();
+                            }
+                        }
+                    });
+                }
+
+                @Override
+                public void onNextAction() {
+                    super.onNextAction();
+                    if (!isFailedPriority) {
+                        Log.d("LuanDev", "onAdFailedToShow: 11");
+                        adListener.onNextAction();
+                    }
+                }
+            });
+        } else if (mOpenSplashHigh2 != null) {
+            onShowSplashHigh2(activity, new AdCallback() {
+                @Override
+                public void onAdFailedToShow(@Nullable AdError i) {
+                    super.onAdFailedToShow(i);
+                    isFailedPriority = true;
+                    onShowSplashHigh3(activity, new AdCallback() {
+                        @Override
+                        public void onAdFailedToShow(@Nullable AdError i) {
+                            super.onAdFailedToShow(i);
+                            isFailedPriority = true;
+                            onShowSplashNormal(activity, new AdCallback() {
+                                @Override
+                                public void onAdFailedToShow(@Nullable AdError i) {
+                                    super.onAdFailedToShow(i);
+                                    adListener.onAdFailedToShow(i);
+                                }
+
+                                @Override
+                                public void onNextAction() {
+                                    super.onNextAction();
+                                    adListener.onNextAction();
+                                    Log.d("LuanDev", "onAdFailedToShow: 42");
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onNextAction() {
+                            super.onNextAction();
+                            if (!isFailedPriority) {
+                                adListener.onNextAction();
+                                Log.d("LuanDev", "onAdFailedToShow: 32");
+                            }
+                        }
+                    });
+                }
+
+                @Override
+                public void onNextAction() {
+                    super.onNextAction();
+                    if (!isFailedPriority) {
+                        adListener.onNextAction();
+                        Log.d("LuanDev", "onAdFailedToShow: 22");
+                    }
+                }
+            });
+        } else if (mOpenSplashHigh3 != null) {
+            onShowSplashHigh3(activity, new AdCallback() {
+                @Override
+                public void onAdFailedToShow(@Nullable AdError i) {
+                    super.onAdFailedToShow(i);
+                    isFailedPriority = true;
+                    onShowSplashNormal(activity, new AdCallback() {
+                        @Override
+                        public void onAdFailedToShow(@Nullable AdError i) {
+                            super.onAdFailedToShow(i);
+                            adListener.onAdFailedToShow(i);
+                        }
+
+                        @Override
+                        public void onNextAction() {
+                            super.onNextAction();
+                            adListener.onNextAction();
+                            Log.d("LuanDev", "onAdFailedToShow: 43");
+                        }
+                    });
+                }
+
+                @Override
+                public void onNextAction() {
+                    super.onNextAction();
+                    if (!isFailedPriority) {
+                        adListener.onNextAction();
+                        Log.d("LuanDev", "onAdFailedToShow: 33");
+                    }
+                }
+            });
+        } else if (mOpenSplashNormal != null) {
+            onShowSplashNormal(activity, new AdCallback() {
+                @Override
+                public void onAdFailedToShow(@Nullable AdError i) {
+                    super.onAdFailedToShow(i);
+                    adListener.onAdFailedToShow(i);
+                }
+
+                @Override
+                public void onNextAction() {
+                    super.onNextAction();
+                    adListener.onNextAction();
+                    Log.d("LuanDev", "onAdFailedToShow: 44");
+                }
+            });
+        } else {
+            adListener.onNextAction();
+            Log.d("LuanDev", "onAdFailedToShow: 55");
+        }
+    }
+
+    private AppOpenAd mOpenSplashHigh1;
+    private Handler handlerTimeoutHigh1;
+    private Runnable rdTimeoutHigh1;
+
+    private void loadOpenHigh1(Context context, String isOpenHigh1, long timeOut, AdCallback adCallback) {
+        if (AppPurchase.getInstance().isPurchased(context)) {
+            if (adCallback != null) {
+                adCallback.onNextAction();
+            }
+            return;
+        }
+
+        rdTimeoutHigh1 = () -> {
+            Log.d("AppOpenManager", "getAdSplash time out");
+            adCallback.onNextAction();
+        };
+        handlerTimeoutHigh1 = new Handler();
+        handlerTimeoutHigh1.postDelayed(rdTimeoutHigh1, timeOut);
+
+        AdRequest adRequest = this.getAdRequest();
+        AppOpenAd.AppOpenAdLoadCallback appOpenAdLoadCallback = new AppOpenAd.AppOpenAdLoadCallback() {
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                super.onAdFailedToLoad(loadAdError);
+                isOpenHigh1Failed = true;
+                if (isOpenHigh2Loaded && isOpenHigh3Loaded && isOpenNormalLoaded) {
+                    handlerTimeoutHigh1.removeCallbacks(rdTimeoutHigh1);
+                    adCallback.onNextAction();
+                }
+            }
+
+            public void onAdLoaded(@NonNull AppOpenAd appOpenAd) {
+                super.onAdLoaded(appOpenAd);
+                mOpenSplashHigh1 = appOpenAd;
+                handlerTimeoutHigh1.removeCallbacks(rdTimeoutHigh1);
+                appOpenAd.setOnPaidEventListener((adValue) -> {
+                    ITGLogEventManager.logPaidAdImpression(myApplication.getApplicationContext(),
+                            adValue,
+                            appOpenAd.getAdUnitId(),
+                            appOpenAd.getResponseInfo()
+                                    .getMediationAdapterClassName(), AdType.APP_OPEN);
+                    ITGLogEventManager.logPaidAdjustWithToken(adValue, appOpenAd.getAdUnitId(), ITGAdConfig.ADJUST_TOKEN_TIKTOK);
+                });
+                adCallback.onAdSplashReady();
+            }
+        };
+        AppOpenAd.load(context, isOpenHigh1, adRequest, 1, appOpenAdLoadCallback);
+    }
+
+    private void onShowSplashHigh1(AppCompatActivity activity, AdCallback adCallback) {
+        if (mOpenSplashHigh1 == null) {
+            adCallback.onNextAction();
+            return;
+        }
+
+        if (handlerTimeoutHigh1 != null && rdTimeoutHigh1 != null) {
+            handlerTimeoutHigh1.removeCallbacks(rdTimeoutHigh1);
+        }
+
+        new Handler().postDelayed(() -> {
+            mOpenSplashHigh1.setFullScreenContentCallback(
+                    new FullScreenContentCallback() {
+                        @Override
+                        public void onAdDismissedFullScreenContent() {
+                            mOpenSplashHigh1 = null;
+                            adCallback.onNextAction();
+                            Log.d("AppOpenSplash Failed", "onAdDismissedFullScreenContent: vao 1");
+                        }
+
+                        @Override
+                        public void onAdFailedToShowFullScreenContent(AdError adError) {
+                            adCallback.onAdFailedToShow(adError);
+                            mOpenSplashHigh1 = null;
+                        }
+
+                        @Override
+                        public void onAdShowedFullScreenContent() {
+                            adCallback.onAdImpression();
+                            mOpenSplashHigh1 = null;
+                        }
+
+                        @Override
+                        public void onAdClicked() {
+                            super.onAdClicked();
+                            ITGLogEventManager.logClickAdsEvent(activity, mOpenSplashHigh1.getAdUnitId());
+                            adCallback.onAdClicked();
+                        }
+                    });
+            mOpenSplashHigh1.show(currentActivity);
+        }, 800);
+    }
+
+    private AppOpenAd mOpenSplashHigh2;
+    private Handler handlerTimeoutHigh2;
+    private Runnable rdTimeoutHigh2;
+
+    private void loadOpenHigh2(Context context, String isOpenHigh2, long timeOut, AdCallback adCallback) {
+        if (AppPurchase.getInstance().isPurchased(context)) {
+            if (adCallback != null) {
+                adCallback.onNextAction();
+            }
+            return;
+        }
+
+        rdTimeoutHigh2 = () -> {
+            Log.d("AppOpenManager", "getAdSplash time out");
+            adCallback.onNextAction();
+        };
+        handlerTimeoutHigh2 = new Handler();
+        handlerTimeoutHigh2.postDelayed(rdTimeoutHigh2, timeOut);
+
+        AdRequest adRequest = this.getAdRequest();
+        AppOpenAd.AppOpenAdLoadCallback appOpenAdLoadCallback = new AppOpenAd.AppOpenAdLoadCallback() {
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                super.onAdFailedToLoad(loadAdError);
+                isOpenHigh2Loaded = true;
+                if (isOpenHigh1Failed && isOpenHigh3Loaded && isOpenNormalLoaded) {
+                    handlerTimeoutHigh2.removeCallbacks(rdTimeoutHigh2);
+                    adCallback.onNextAction();
+                }
+            }
+
+            public void onAdLoaded(@NonNull AppOpenAd appOpenAd) {
+                super.onAdLoaded(appOpenAd);
+                mOpenSplashHigh2 = appOpenAd;
+                handlerTimeoutHigh2.removeCallbacks(rdTimeoutHigh2);
+                appOpenAd.setOnPaidEventListener((adValue) -> {
+                    ITGLogEventManager.logPaidAdImpression(myApplication.getApplicationContext(),
+                            adValue,
+                            appOpenAd.getAdUnitId(),
+                            appOpenAd.getResponseInfo()
+                                    .getMediationAdapterClassName(), AdType.APP_OPEN);
+                    ITGLogEventManager.logPaidAdjustWithToken(adValue, appOpenAd.getAdUnitId(), ITGAdConfig.ADJUST_TOKEN_TIKTOK);
+                });
+                adCallback.onAdSplashReady();
+            }
+        };
+        AppOpenAd.load(context, isOpenHigh2, adRequest, 1, appOpenAdLoadCallback);
+    }
+
+    private void onShowSplashHigh2(AppCompatActivity activity, AdCallback adCallback) {
+        if (mOpenSplashHigh2 == null) {
+            adCallback.onNextAction();
+            return;
+        }
+
+        if (handlerTimeoutHigh2 != null && rdTimeoutHigh2 != null) {
+            handlerTimeoutHigh2.removeCallbacks(rdTimeoutHigh2);
+        }
+
+        new Handler().postDelayed(() -> {
+            mOpenSplashHigh2.setFullScreenContentCallback(
+                    new FullScreenContentCallback() {
+                        @Override
+                        public void onAdDismissedFullScreenContent() {
+                            mOpenSplashHigh2 = null;
+                            adCallback.onNextAction();
+                            Log.d("AppOpenSplash Failed", "onAdDismissedFullScreenContent: vao 1");
+                        }
+
+                        @Override
+                        public void onAdFailedToShowFullScreenContent(AdError adError) {
+                            adCallback.onAdFailedToShow(adError);
+                            mOpenSplashHigh2 = null;
+                        }
+
+                        @Override
+                        public void onAdShowedFullScreenContent() {
+                            adCallback.onAdImpression();
+                            mOpenSplashHigh2 = null;
+                        }
+
+                        @Override
+                        public void onAdClicked() {
+                            super.onAdClicked();
+                            ITGLogEventManager.logClickAdsEvent(activity, mOpenSplashHigh2.getAdUnitId());
+                            adCallback.onAdClicked();
+                        }
+                    });
+            mOpenSplashHigh2.show(currentActivity);
+        }, 800);
+    }
+
+    private AppOpenAd mOpenSplashHigh3;
+    private Handler handlerTimeoutHigh3;
+    private Runnable rdTimeoutHigh3;
+
+    private void loadOpenHigh3(Context context, String isOpenHigh3, long timeOut, AdCallback adCallback) {
+        if (AppPurchase.getInstance().isPurchased(context)) {
+            if (adCallback != null) {
+                adCallback.onNextAction();
+            }
+            return;
+        }
+
+        rdTimeoutHigh3 = () -> {
+            Log.d("AppOpenManager", "getAdSplash time out");
+            adCallback.onNextAction();
+        };
+        handlerTimeoutHigh3 = new Handler();
+        handlerTimeoutHigh3.postDelayed(rdTimeoutHigh3, timeOut);
+
+        AdRequest adRequest = this.getAdRequest();
+        AppOpenAd.AppOpenAdLoadCallback appOpenAdLoadCallback = new AppOpenAd.AppOpenAdLoadCallback() {
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                super.onAdFailedToLoad(loadAdError);
+                isOpenHigh3Loaded = true;
+                if (isOpenHigh1Failed && isOpenHigh2Loaded && isOpenNormalLoaded) {
+                    handlerTimeoutHigh3.removeCallbacks(rdTimeoutHigh3);
+                    adCallback.onNextAction();
+                }
+            }
+
+            public void onAdLoaded(@NonNull AppOpenAd appOpenAd) {
+                super.onAdLoaded(appOpenAd);
+                mOpenSplashHigh3 = appOpenAd;
+                handlerTimeoutHigh3.removeCallbacks(rdTimeoutHigh3);
+                appOpenAd.setOnPaidEventListener((adValue) -> {
+                    ITGLogEventManager.logPaidAdImpression(myApplication.getApplicationContext(),
+                            adValue,
+                            appOpenAd.getAdUnitId(),
+                            appOpenAd.getResponseInfo()
+                                    .getMediationAdapterClassName(), AdType.APP_OPEN);
+                    ITGLogEventManager.logPaidAdjustWithToken(adValue, appOpenAd.getAdUnitId(), ITGAdConfig.ADJUST_TOKEN_TIKTOK);
+                });
+                adCallback.onAdSplashReady();
+            }
+        };
+        AppOpenAd.load(context, isOpenHigh3, adRequest, 1, appOpenAdLoadCallback);
+    }
+
+    private void onShowSplashHigh3(AppCompatActivity activity, AdCallback adCallback) {
+        if (mOpenSplashHigh3 == null) {
+            adCallback.onNextAction();
+            return;
+        }
+
+        if (handlerTimeoutHigh3 != null && rdTimeoutHigh3 != null) {
+            handlerTimeoutHigh3.removeCallbacks(rdTimeoutHigh3);
+        }
+
+        new Handler().postDelayed(() -> {
+            mOpenSplashHigh3.setFullScreenContentCallback(
+                    new FullScreenContentCallback() {
+                        @Override
+                        public void onAdDismissedFullScreenContent() {
+                            mOpenSplashHigh3 = null;
+                            adCallback.onNextAction();
+                            Log.d("AppOpenSplash Failed", "onAdDismissedFullScreenContent: vao 1");
+                        }
+
+                        @Override
+                        public void onAdFailedToShowFullScreenContent(AdError adError) {
+                            adCallback.onAdFailedToShow(adError);
+                            mOpenSplashHigh3 = null;
+                        }
+
+                        @Override
+                        public void onAdShowedFullScreenContent() {
+                            adCallback.onAdImpression();
+                            mOpenSplashHigh3 = null;
+                        }
+
+                        @Override
+                        public void onAdClicked() {
+                            super.onAdClicked();
+                            ITGLogEventManager.logClickAdsEvent(activity, mOpenSplashHigh3.getAdUnitId());
+                            adCallback.onAdClicked();
+                        }
+                    });
+            mOpenSplashHigh3.show(currentActivity);
+        }, 800);
+    }
+
+    private AppOpenAd mOpenSplashNormal;
+    private Handler handlerTimeoutNormal;
+    private Runnable rdTimeoutNormal;
+
+    private void loadOpenNormal(Context context, String isOpenNormal, long timeOut, AdCallback adCallback) {
+        if (AppPurchase.getInstance().isPurchased(context)) {
+            if (adCallback != null) {
+                adCallback.onNextAction();
+            }
+            return;
+        }
+
+        rdTimeoutNormal = () -> {
+            Log.d("AppOpenManager", "getAdSplash time out");
+            adCallback.onNextAction();
+        };
+        handlerTimeoutNormal = new Handler();
+        handlerTimeoutNormal.postDelayed(rdTimeoutNormal, timeOut);
+
+        AdRequest adRequest = this.getAdRequest();
+        AppOpenAd.AppOpenAdLoadCallback appOpenAdLoadCallback = new AppOpenAd.AppOpenAdLoadCallback() {
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                super.onAdFailedToLoad(loadAdError);
+                isOpenNormalLoaded = true;
+                if (isOpenHigh1Failed && isOpenHigh2Loaded && isOpenHigh3Loaded) {
+                    handlerTimeoutNormal.removeCallbacks(rdTimeoutNormal);
+                    adCallback.onNextAction();
+                }
+            }
+
+            public void onAdLoaded(@NonNull AppOpenAd appOpenAd) {
+                super.onAdLoaded(appOpenAd);
+                mOpenSplashNormal = appOpenAd;
+                handlerTimeoutNormal.removeCallbacks(rdTimeoutNormal);
+                appOpenAd.setOnPaidEventListener((adValue) -> {
+                    ITGLogEventManager.logPaidAdImpression(myApplication.getApplicationContext(),
+                            adValue,
+                            appOpenAd.getAdUnitId(),
+                            appOpenAd.getResponseInfo()
+                                    .getMediationAdapterClassName(), AdType.APP_OPEN);
+                    ITGLogEventManager.logPaidAdjustWithToken(adValue, appOpenAd.getAdUnitId(), ITGAdConfig.ADJUST_TOKEN_TIKTOK);
+                });
+                adCallback.onAdSplashReady();
+            }
+        };
+        AppOpenAd.load(context, isOpenNormal, adRequest, 1, appOpenAdLoadCallback);
+    }
+
+    private void onShowSplashNormal(AppCompatActivity activity, AdCallback adCallback) {
+        if (mOpenSplashNormal == null) {
+            adCallback.onNextAction();
+            return;
+        }
+
+        if (handlerTimeoutNormal != null && rdTimeoutNormal != null) {
+            handlerTimeoutNormal.removeCallbacks(rdTimeoutNormal);
+        }
+
+        new Handler().postDelayed(() -> {
+            mOpenSplashNormal.setFullScreenContentCallback(
+                    new FullScreenContentCallback() {
+                        @Override
+                        public void onAdDismissedFullScreenContent() {
+                            mOpenSplashNormal = null;
+                            adCallback.onNextAction();
+                            Log.d("AppOpenSplash Failed", "onAdDismissedFullScreenContent: vao 1");
+                        }
+
+                        @Override
+                        public void onAdFailedToShowFullScreenContent(AdError adError) {
+                            adCallback.onAdFailedToShow(adError);
+                            mOpenSplashNormal = null;
+                        }
+
+                        @Override
+                        public void onAdShowedFullScreenContent() {
+                            adCallback.onAdImpression();
+                            mOpenSplashNormal = null;
+                        }
+
+                        @Override
+                        public void onAdClicked() {
+                            super.onAdClicked();
+                            ITGLogEventManager.logClickAdsEvent(activity, mOpenSplashNormal.getAdUnitId());
+                            adCallback.onAdClicked();
+                        }
+                    });
+            mOpenSplashNormal.show(currentActivity);
+        }, 800);
+    }
+
 }
 
