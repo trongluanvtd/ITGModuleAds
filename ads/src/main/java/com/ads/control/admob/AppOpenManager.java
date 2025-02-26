@@ -2040,7 +2040,6 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                         @Override
                         public void onAdShowedFullScreenContent() {
                             adCallback.onAdImpression();
-                            mOpenSplashHigh1 = null;
                         }
 
                         @Override
@@ -2131,7 +2130,6 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                         @Override
                         public void onAdShowedFullScreenContent() {
                             adCallback.onAdImpression();
-                            mOpenSplashHigh2 = null;
                         }
 
                         @Override
@@ -2222,7 +2220,6 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                         @Override
                         public void onAdShowedFullScreenContent() {
                             adCallback.onAdImpression();
-                            mOpenSplashHigh3 = null;
                         }
 
                         @Override
